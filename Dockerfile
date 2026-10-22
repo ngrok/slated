@@ -2,7 +2,8 @@
 
 # Base image with pnpm enabled via corepack (version pinned by package.json's
 # "packageManager" field).
-FROM node:22-slim AS base
+# 22.23.4 updates Node's bundled CA roots, removing the distrusted emSign G3 root.
+FROM node:22.23.4-slim AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
