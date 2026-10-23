@@ -11,9 +11,6 @@ env:
 
 jobs:
   build-and-push:
-    # Pushes to ngrok's own image registry, so it can only work in this repo.
-    # Skipped in forks, which have neither the registry credentials nor the app.
-    if: github.repository == 'ngrok/slated'
     runs-on: "ubuntu-latest"
     permissions:
       contents: "read"
