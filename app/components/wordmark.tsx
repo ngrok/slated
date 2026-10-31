@@ -6,8 +6,9 @@ import { useId } from "react";
  * The mark is a calendar tile with one day filled in: the day a piece of work
  * is slated for. It is inlined as SVG rather than loaded from `/favicon.svg` so
  * it paints with the first render and needs no extra request. Colors are fixed
- * to the brand blue instead of `currentColor`, because the mark has to read the
- * same way on the light and dark surfaces mantle gives us.
+ * to the brand slate instead of `currentColor`, because the mark has to read the
+ * same way on the light and dark surfaces mantle gives us. That is also why it
+ * uses a mid slate rather than the near-black accent of a filled button.
  *
  * Geometry note: the tile is drawn as two rects behind a clip path rather than
  * as a rounded rect plus an arc-capped band. That keeps the band a straight
@@ -16,10 +17,10 @@ import { useId } from "react";
  * bottom row to within 1.5 of the tile edge, and it showed at 16px.
  */
 
-/** mantle's `--color-accent-600`, the same blue as a filled button. */
-const TILE = "#0078C4";
-/** mantle's `--color-accent-900`, for the calendar binding across the top. */
-const BINDING = "#024A70";
+/** Tailwind's slate-600: mid-tone, so the tile holds up on light and dark tabs. */
+const TILE = "#45556C";
+/** Tailwind's slate-800, for the calendar binding across the top. */
+const BINDING = "#1D293D";
 /** Unmarked days. Low enough to recede, high enough to survive a 16px favicon. */
 const DAY_OPACITY = 0.5;
 

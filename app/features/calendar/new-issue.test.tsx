@@ -143,8 +143,8 @@ describe("NewIssueDialog", () => {
 		await userEvent.click(screen.getByRole("checkbox", { name: /web/ }));
 		// Unassigned until someone is picked; the picked member's id goes out.
 		await userEvent.click(screen.getByRole("button", { name: "Assignee" }));
-		await userEvent.click(screen.getByRole("button", { name: /grace/ }));
-		expect(screen.getByRole("button", { name: "Assignee" })).toHaveTextContent("grace");
+		await userEvent.click(screen.getByRole("option", { name: /Grace Hopper/ }));
+		expect(screen.getByRole("button", { name: "Assignee" })).toHaveTextContent("Grace Hopper");
 		await userEvent.click(screen.getByRole("button", { name: "Create issue" }));
 
 		const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));

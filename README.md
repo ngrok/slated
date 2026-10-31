@@ -48,8 +48,10 @@ Slated:
   **Options**.
 - Reschedules an issue or project the moment you drop it on a new day. The card
   moves first, then rolls back if Linear rejects the write.
-- Opens any issue in a modal to read its description and edit the due date or
-  tags. Clear the date to drop it off the calendar.
+- Opens any issue in a side panel beside the calendar to read its description
+  and edit its status, assignee, priority, due date, and tags. `J` and `K` step
+  through the issues on the calendar. Clear the date to drop it off the
+  calendar, with an undo.
 - Creates issues in place. Hover a day, hit `+`, and set a title, team, due
   date, status, priority, assignee, and tags.
 - Discovers your teams from Linear, then filters by team and label.
@@ -192,7 +194,7 @@ CI runs lint, typecheck, tests, and the build on every pull request.
 ├── app/
 │   ├── routes/        The calendar page and the API routes that proxy Linear.
 │   ├── features/
-│   │   └── calendar/  The month grid, cards, filters, modal, and data hooks.
+│   │   └── calendar/  The month grid, cards, filters, issue panel, and data hooks.
 │   └── lib/           Env, the Linear client, the GraphQL queries, and the
 │                       demo calendar's fake workspace.
 ├── scripts/           pnpm setup:env.

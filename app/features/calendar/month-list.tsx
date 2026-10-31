@@ -24,7 +24,7 @@ import {
 } from "react";
 import { monthGridRange, toISODate, WEEKDAY_LABELS } from "./date-utils";
 import { IssueCard } from "./issue-card";
-import { IssueDetailModal } from "./issue-detail-modal";
+import { IssuePanel } from "./issue-panel";
 import { MonthSection } from "./month-section";
 import { ProjectCard } from "./project-card";
 import {
@@ -34,6 +34,7 @@ import {
 	useUpdateDueDate,
 	useUpdateTargetDate,
 } from "./queries";
+import { SelectedIssueContext } from "./selected-issue";
 import type { CalendarIssue, CalendarProject } from "./types";
 import { useToday } from "./use-today";
 import type { ViewOptions } from "./view-options";
@@ -54,7 +55,7 @@ function useHydrated(): boolean {
 
 /**
  * Find an issue by id across every cached calendar-issues query, reactively.
- * The modal is driven from this so optimistic edits (reschedule, retag) reflect
+ * The side panel is driven from this so optimistic edits (reschedule, retag) reflect
  * immediately regardless of which month section currently holds the issue.
  */
 function useIssueById(id: string | null): CalendarIssue | null {
@@ -283,10 +284,28 @@ export const MonthList = forwardRef<
 		}
 	}, [months, queryClient, teamIds, labelIds, canFetchIssues, options.showProjects]);
 
-	// Issue detail modal, driven reactively from the cache (see useIssueById).
+	// Issue side panel, driven reactively from the cache (see useIssueById).
 	const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
 	const selectedIssue = useIssueById(selectedIssueId);
 	const handleOpenIssue = useCallback((issue: CalendarIssue) => setSelectedIssueId(issue.id), []);
+	const closeIssue = useCallback(() => setSelectedIssueId(null), []);
+	// The grid already renders the visible issues in calendar order (weeks top
+	// to bottom, days left to right, cards top to bottom), filtered by the view
+	// options, so the next issue is simply the next card in the document.
+	const stepIssue = useCallback(
+		(direction: 1 | -1) => {
+			const cards = [
+				...(scrollRef.current?.querySelectorAll<HTMLElement>("[data-issue-id]") ?? []),
+			];
+			const index = cards.findIndex((card) => card.dataset.issueId === selectedIssueId);
+			const next = index === -1 ? undefined : cards[index + direction];
+			if (next?.dataset.issueId) {
+				setSelectedIssueId(next.dataset.issueId);
+				next.scrollIntoView({ block: "nearest" });
+			}
+		},
+		[selectedIssueId],
+	);
 
 	// Drag-to-reschedule across the whole visible list. A card carries either an
 	// issue or a project, and each writes its own date field.
@@ -326,62 +345,68 @@ export const MonthList = forwardRef<
 	}
 
 	return (
-		<div className="flex min-h-0 flex-1 flex-col">
-			{hydrated ? (
-				<DndContext
-					sensors={sensors}
-					collisionDetection={pointerWithin}
-					onDragStart={handleDragStart}
-					onDragEnd={handleDragEnd}
-				>
-					<div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-						<div ref={topSentinelRef} className="h-px" />
-						<div
-							className={cx(
-								"sticky top-0 z-20 grid border-b border-card-muted bg-base py-2",
-								gridColsClass,
-							)}
-						>
-							<div />
-							{weekdayLabels.map((label) => (
-								<div key={label} className="px-1 text-base font-medium text-muted">
-									{label}
-								</div>
-							))}
-						</div>
-						<div className="border-r border-card-muted">
-							{months.map((month) => (
-								<MonthSection
-									key={toISODate(month)}
-									ref={toISODate(month) === currentMonthIso ? todayRef : undefined}
-									month={month}
-									teamIds={teamIds}
-									labelIds={labelIds}
-									enabled={canFetchIssues}
-									options={options}
-									today={today}
-									gridColsClass={gridColsClass}
-									onOpenIssue={handleOpenIssue}
-									onNewIssue={onNewIssue}
-								/>
-							))}
-						</div>
-						<div ref={bottomSentinelRef} className="h-px" />
-					</div>
-					<DragOverlay>
-						{activeCard ? (
-							<div className="w-40 rotate-2 opacity-90">
-								{activeCard.issue ? <IssueCard issue={activeCard.issue} /> : null}
-								{activeCard.project ? <ProjectCard project={activeCard.project} /> : null}
+		<div className="flex min-h-0 flex-1">
+			<div className="flex min-h-0 min-w-0 flex-1 flex-col">
+				{hydrated ? (
+					<DndContext
+						sensors={sensors}
+						collisionDetection={pointerWithin}
+						onDragStart={handleDragStart}
+						onDragEnd={handleDragEnd}
+					>
+						<div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
+							<div ref={topSentinelRef} className="h-px" />
+							<div
+								className={cx(
+									"sticky top-0 z-20 grid border-b border-card-muted bg-base py-2",
+									gridColsClass,
+								)}
+							>
+								<div />
+								{weekdayLabels.map((label) => (
+									<div key={label} className="px-1 text-base font-medium text-muted">
+										{label}
+									</div>
+								))}
 							</div>
-						) : null}
-					</DragOverlay>
-				</DndContext>
-			) : (
-				<div className="h-96 animate-pulse rounded border border-card bg-card" />
-			)}
+							<div className="border-r border-card-muted">
+								<SelectedIssueContext.Provider value={selectedIssueId}>
+									{months.map((month) => (
+										<MonthSection
+											key={toISODate(month)}
+											ref={toISODate(month) === currentMonthIso ? todayRef : undefined}
+											month={month}
+											teamIds={teamIds}
+											labelIds={labelIds}
+											enabled={canFetchIssues}
+											options={options}
+											today={today}
+											gridColsClass={gridColsClass}
+											onOpenIssue={handleOpenIssue}
+											onNewIssue={onNewIssue}
+										/>
+									))}
+								</SelectedIssueContext.Provider>
+							</div>
+							<div ref={bottomSentinelRef} className="h-px" />
+						</div>
+						<DragOverlay>
+							{activeCard ? (
+								<div className="w-40 rotate-2 opacity-90">
+									{activeCard.issue ? <IssueCard issue={activeCard.issue} /> : null}
+									{activeCard.project ? <ProjectCard project={activeCard.project} /> : null}
+								</div>
+							) : null}
+						</DragOverlay>
+					</DndContext>
+				) : (
+					<div className="h-96 animate-pulse rounded border border-card bg-card" />
+				)}
+			</div>
 
-			<IssueDetailModal issue={selectedIssue} onClose={() => setSelectedIssueId(null)} />
+			{selectedIssue ? (
+				<IssuePanel issue={selectedIssue} onClose={closeIssue} onStep={stepIssue} />
+			) : null}
 		</div>
 	);
 });

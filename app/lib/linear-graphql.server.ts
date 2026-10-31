@@ -511,6 +511,32 @@ export async function createIssue(params: {
 	return { ...issue, labels: issue.labels.nodes };
 }
 
+// Linear's priority scale: 0 none, 1 urgent, 2 high, 3 medium, 4 low.
+export const MAX_PRIORITY = 4;
+
+const UPDATE_ISSUE_MUTATION = `
+mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) {
+  issueUpdate(id: $id, input: $input) {
+    success
+  }
+}`;
+
+/** Set an issue's assignee (null unassigns) and/or priority in one write. */
+export async function updateIssueAssigneeAndPriority(params: {
+	authorization: string;
+	issueId: string;
+	input: { assigneeId?: string | null; priority?: number };
+}): Promise<void> {
+	const data = await linearGraphQL<{ issueUpdate: { success: boolean } }>(
+		params.authorization,
+		UPDATE_ISSUE_MUTATION,
+		{ id: params.issueId, input: params.input },
+	);
+	if (!data.issueUpdate.success) {
+		throw new Error("Linear did not accept the issue update");
+	}
+}
+
 const UPDATE_STATE_MUTATION = `
 mutation UpdateState($id: String!, $stateId: String!) {
   issueUpdate(id: $id, input: { stateId: $stateId }) {

@@ -540,6 +540,78 @@ export function useUpdateState() {
 	});
 }
 
+async function postIssueUpdate(body: Record<string, unknown>, what: string): Promise<void> {
+	const res = await fetch("/api/issues", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+	if (!res.ok) {
+		throw new Error(`Failed to update ${what} (${res.status})`);
+	}
+}
+
+/**
+ * Reassign an issue (null unassigns) with an optimistic cache update. The
+ * caller passes the whole member so the card's avatar changes at once.
+ */
+export function useUpdateAssignee() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ issueId, assignee }: { issueId: string; assignee: TeamMember | null }) =>
+			postIssueUpdate({ issueId, assigneeId: assignee?.id ?? null }, "assignee"),
+		onMutate: async ({ issueId, assignee }) => {
+			await queryClient.cancelQueries(issuesQueryFilter);
+			const previous = queryClient.getQueriesData<CalendarIssue[]>(issuesQueryFilter);
+			queryClient.setQueriesData<CalendarIssue[]>(issuesQueryFilter, (old) =>
+				old?.map((issue) => (issue.id === issueId ? { ...issue, assignee } : issue)),
+			);
+			return { previous };
+		},
+		onError: (_error, _vars, context) => {
+			rollbackTo(
+				queryClient,
+				context?.previous,
+				"We couldn't save that change — it's been reverted.",
+			);
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries(issuesQueryFilter);
+		},
+	});
+}
+
+/** Change an issue's priority with an optimistic cache update. */
+export function useUpdatePriority() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ issueId, priority }: { issueId: string; priority: number; label: string }) =>
+			postIssueUpdate({ issueId, priority }, "priority"),
+		onMutate: async ({ issueId, priority, label }) => {
+			await queryClient.cancelQueries(issuesQueryFilter);
+			const previous = queryClient.getQueriesData<CalendarIssue[]>(issuesQueryFilter);
+			queryClient.setQueriesData<CalendarIssue[]>(issuesQueryFilter, (old) =>
+				old?.map((issue) =>
+					issue.id === issueId ? { ...issue, priority, priorityLabel: label } : issue,
+				),
+			);
+			return { previous };
+		},
+		onError: (_error, _vars, context) => {
+			rollbackTo(
+				queryClient,
+				context?.previous,
+				"We couldn't save that change — it's been reverted.",
+			);
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries(issuesQueryFilter);
+		},
+	});
+}
+
 /** Warm the cache for a month the user is likely to navigate to next. */
 export function prefetchCalendarIssues(client: QueryClient, params: IssuesQueryParams) {
 	if ((params.teamIds?.length ?? 0) === 0) {

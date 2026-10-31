@@ -624,6 +624,9 @@ type IssueEdit = {
 	dueDate?: string | null;
 	stateId?: string;
 	labelIds?: string[];
+	/** null unassigns. */
+	assigneeId?: string | null;
+	priority?: number;
 };
 
 const issueEdits = new Map<string, IssueEdit>();
@@ -643,6 +646,15 @@ function applyIssueEdit(issue: CalendarIssue): CalendarIssue | null {
 		...issue,
 		...(edit.dueDate ? { dueDate: edit.dueDate } : {}),
 		...(state ? { state: asIssueState(state) } : {}),
+		...(edit.assigneeId !== undefined
+			? { assignee: PEOPLE.find((person) => person.id === edit.assigneeId) ?? null }
+			: {}),
+		...(edit.priority !== undefined
+			? {
+					priority: edit.priority,
+					priorityLabel: PRIORITY_LABELS[edit.priority] ?? "No priority",
+				}
+			: {}),
 		...(edit.labelIds
 			? {
 					labels: edit.labelIds.flatMap((id) => {
@@ -806,6 +818,8 @@ export function demoUpdateIssue(input: {
 	dueDate?: string | null;
 	stateId?: string;
 	labelIds?: string[];
+	assigneeId?: string | null;
+	priority?: number;
 }): void {
 	const existing = issueEdits.get(input.issueId) ?? {};
 	issueEdits.set(input.issueId, {
@@ -813,6 +827,8 @@ export function demoUpdateIssue(input: {
 		...("dueDate" in input ? { dueDate: input.dueDate } : {}),
 		...(input.stateId ? { stateId: input.stateId } : {}),
 		...(input.labelIds ? { labelIds: input.labelIds } : {}),
+		...("assigneeId" in input ? { assigneeId: input.assigneeId } : {}),
+		...(input.priority !== undefined ? { priority: input.priority } : {}),
 	});
 }
 

@@ -30,7 +30,7 @@ export const PersonAvatar = memo(function PersonAvatar({
 	return (
 		<span
 			title={person.name}
-			className="flex size-4 shrink-0 items-center justify-center rounded-full bg-filled-accent text-[8px] font-medium text-on-filled"
+			className="flex size-4 shrink-0 items-center justify-center rounded-full bg-filled-accent text-[8px] font-medium text-white"
 		>
 			{initialsOf(person.displayName || person.name)}
 		</span>

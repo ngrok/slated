@@ -6,24 +6,16 @@ import { Input } from "@ngrok/mantle/input";
 import { Popover } from "@ngrok/mantle/popover";
 import { Select } from "@ngrok/mantle/select";
 import { TextArea } from "@ngrok/mantle/text-area";
-import { CalendarBlank, Check, UserCircle } from "@phosphor-icons/react";
+import { CalendarBlank, UserCircle } from "@phosphor-icons/react";
 import { format, parseISO } from "date-fns";
 import { type FormEvent, useId, useState } from "react";
 import { toISODate } from "./date-utils";
 import { PersonAvatar } from "./person-avatar";
-import { PriorityIcon } from "./priority-icon";
+import { assigneeOptions, Picker, UNASSIGNED } from "./picker";
+import { PRIORITIES, PriorityIcon } from "./priority-icon";
 import { useCreateIssue, useLabels, useTeamMembers, useTeams, useWorkflowStates } from "./queries";
 import { StatusIcon } from "./status-icon";
 import type { LabelOption } from "./types";
-
-// Linear's priority scale, in the order Linear's own menu lists it.
-const PRIORITIES = [
-	{ value: 0, label: "No priority" },
-	{ value: 1, label: "Urgent" },
-	{ value: 2, label: "High" },
-	{ value: 3, label: "Medium" },
-	{ value: 4, label: "Low" },
-];
 
 /**
  * Re-point a set of selected labels at the team the issue will be created in.
@@ -90,9 +82,6 @@ function NewIssueForm({
 	const [priority, setPriority] = useState(0);
 	const [assigneeId, setAssigneeId] = useState<string | null>(null);
 	const [dateOpen, setDateOpen] = useState(false);
-	const [stateOpen, setStateOpen] = useState(false);
-	const [priorityOpen, setPriorityOpen] = useState(false);
-	const [assigneeOpen, setAssigneeOpen] = useState(false);
 
 	const { data: states = [] } = useWorkflowStates(teamId);
 	const selectedState = states.find((state) => state.id === stateId);
@@ -216,136 +205,76 @@ function NewIssueForm({
 
 						<section>
 							<SectionHeading>Status</SectionHeading>
-							<Popover.Root open={stateOpen} onOpenChange={setStateOpen}>
-								<Popover.Trigger asChild>
-									<Button type="button" appearance="outlined">
-										{selectedState ? (
-											<>
-												<StatusIcon
-													type={selectedState.type}
-													color={selectedState.color}
-													className="size-4"
-												/>
-												{selectedState.name}
-											</>
-										) : (
-											"Team default"
-										)}
-									</Button>
-								</Popover.Trigger>
-								<Popover.Content className="z-50 max-h-64 w-56 overflow-auto rounded-md border border-card bg-card p-1 text-strong shadow-lg">
-									{states.length === 0 ? (
-										<p className="px-2 py-1.5 text-sm text-muted">
-											{teamId ? "Loading statuses…" : "Select a team first."}
-										</p>
+							<Picker
+								placeholder="Change status…"
+								emptyText={teamId ? "Loading statuses…" : "Select a team first."}
+								options={states.map((state) => ({
+									value: state.id,
+									label: state.name,
+									icon: <StatusIcon type={state.type} color={state.color} className="size-4" />,
+								}))}
+								selected={stateId ? [stateId] : []}
+								onSelect={setStateId}
+							>
+								<Button type="button" appearance="outlined" aria-label="Status">
+									{selectedState ? (
+										<>
+											<StatusIcon
+												type={selectedState.type}
+												color={selectedState.color}
+												className="size-4"
+											/>
+											{selectedState.name}
+										</>
 									) : (
-										states.map((state) => (
-											<button
-												key={state.id}
-												type="button"
-												className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
-												onClick={() => {
-													setStateId(state.id);
-													setStateOpen(false);
-												}}
-											>
-												<StatusIcon type={state.type} color={state.color} className="size-4" />
-												<span className="flex-1 truncate">{state.name}</span>
-												{state.id === stateId ? (
-													<Check className="size-4 shrink-0 text-muted" />
-												) : null}
-											</button>
-										))
+										"Team default"
 									)}
-								</Popover.Content>
-							</Popover.Root>
+								</Button>
+							</Picker>
 						</section>
 
 						<section>
 							<SectionHeading>Priority</SectionHeading>
-							<Popover.Root open={priorityOpen} onOpenChange={setPriorityOpen}>
-								<Popover.Trigger asChild>
-									<Button type="button" appearance="outlined">
-										<PriorityIcon priority={priority} className="size-4" />
-										{selectedPriority?.label}
-									</Button>
-								</Popover.Trigger>
-								<Popover.Content className="z-50 w-48 rounded-md border border-card bg-card p-1 text-strong shadow-lg">
-									{PRIORITIES.map((option) => (
-										<button
-											key={option.value}
-											type="button"
-											className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
-											onClick={() => {
-												setPriority(option.value);
-												setPriorityOpen(false);
-											}}
-										>
-											<PriorityIcon
-												priority={option.value}
-												label={option.label}
-												className="size-4"
-											/>
-											<span className="flex-1 truncate">{option.label}</span>
-											{option.value === priority ? (
-												<Check className="size-4 shrink-0 text-muted" />
-											) : null}
-										</button>
-									))}
-								</Popover.Content>
-							</Popover.Root>
+							<Picker
+								placeholder="Set priority…"
+								options={PRIORITIES.map((option) => ({
+									value: String(option.value),
+									label: option.label,
+									icon: <PriorityIcon priority={option.value} className="size-4" />,
+								}))}
+								selected={[String(priority)]}
+								onSelect={(value) => setPriority(Number(value))}
+							>
+								<Button type="button" appearance="outlined" aria-label="Priority">
+									<PriorityIcon priority={priority} className="size-4" />
+									{selectedPriority?.label}
+								</Button>
+							</Picker>
 						</section>
 
 						<section>
 							<SectionHeading>Assignee</SectionHeading>
-							<Popover.Root open={assigneeOpen} onOpenChange={setAssigneeOpen}>
-								<Popover.Trigger asChild>
-									<Button type="button" appearance="outlined" aria-label="Assignee">
-										{selectedAssignee ? (
-											<>
-												<PersonAvatar person={selectedAssignee} />
-												{selectedAssignee.displayName || selectedAssignee.name}
-											</>
-										) : (
-											<>
-												<UserCircle className="size-4 text-muted" />
-												Unassigned
-											</>
-										)}
-									</Button>
-								</Popover.Trigger>
-								<Popover.Content className="z-50 max-h-64 w-56 overflow-auto rounded-md border border-card bg-card p-1 text-strong shadow-lg">
-									{members.length === 0 ? (
-										<p className="px-2 py-1.5 text-sm text-muted">
-											{teamId ? "Loading people…" : "Select a team first."}
-										</p>
+							<Picker
+								placeholder="Assign to…"
+								emptyText={teamId ? "Loading people…" : "Select a team first."}
+								options={assigneeOptions(members)}
+								selected={[assigneeId ?? UNASSIGNED]}
+								onSelect={(value) => setAssigneeId(value === UNASSIGNED ? null : value)}
+							>
+								<Button type="button" appearance="outlined" aria-label="Assignee">
+									{selectedAssignee ? (
+										<>
+											<PersonAvatar person={selectedAssignee} />
+											{selectedAssignee.name}
+										</>
 									) : (
-										[null, ...members].map((member) => (
-											<button
-												key={member?.id ?? "unassigned"}
-												type="button"
-												className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
-												onClick={() => {
-													setAssigneeId(member?.id ?? null);
-													setAssigneeOpen(false);
-												}}
-											>
-												{member ? (
-													<PersonAvatar person={member} />
-												) : (
-													<UserCircle className="size-4 shrink-0 text-muted" />
-												)}
-												<span className="flex-1 truncate">
-													{member ? member.displayName || member.name : "Unassigned"}
-												</span>
-												{(member?.id ?? null) === assigneeId ? (
-													<Check className="size-4 shrink-0 text-muted" />
-												) : null}
-											</button>
-										))
+										<>
+											<UserCircle className="size-4 text-muted" />
+											Unassigned
+										</>
 									)}
-								</Popover.Content>
-							</Popover.Root>
+								</Button>
+							</Picker>
 						</section>
 					</div>
 

@@ -73,7 +73,7 @@ export const DayCell = memo(
 					<span
 						className={cx(
 							"flex size-5 items-center justify-center rounded-full text-sm",
-							isToday && "bg-filled-accent font-medium text-on-filled",
+							isToday && "bg-filled-accent font-medium text-white",
 							!isToday && !isCurrentMonth && "text-muted",
 							!isToday && isCurrentMonth && "text-strong",
 						)}

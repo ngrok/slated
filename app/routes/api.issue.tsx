@@ -1,11 +1,13 @@
 import { demoCreateIssue, demoIssueDetail } from "~/lib/demo.server";
 import { env } from "~/lib/env.server";
 import { linearAuthorization } from "~/lib/linear.server";
-import { createIssue, fetchIssueDetail, type NewIssueInput } from "~/lib/linear-graphql.server";
+import {
+	createIssue,
+	fetchIssueDetail,
+	MAX_PRIORITY,
+	type NewIssueInput,
+} from "~/lib/linear-graphql.server";
 import type { Route } from "./+types/api.issue";
-
-// Linear's priority scale: 0 none, 1 urgent, 2 high, 3 medium, 4 low.
-const MAX_PRIORITY = 4;
 
 // BFF resource route for on-demand issue detail (the heavy `description` field
 // the calendar list query doesn't load).
