@@ -7,7 +7,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { DayCell } from "./day-cell";
 import { NewIssueDialog } from "./new-issue-dialog";
 import { calendarKeys, useCreateIssue } from "./queries";
-import type { CalendarIssue, LabelOption, TeamOption, WorkflowState } from "./types";
+import type { CalendarIssue, LabelOption, TeamMember, TeamOption, WorkflowState } from "./types";
 
 const teams: TeamOption[] = [{ id: "gtm", key: "GTM", name: "GTM" }];
 
@@ -24,6 +24,11 @@ const labels: LabelOption[] = [
 
 const states: WorkflowState[] = [
 	{ id: "todo", name: "Todo", color: "#e2e2e2", type: "unstarted", position: 0 },
+];
+
+const members: TeamMember[] = [
+	{ id: "user-ada", name: "Ada Lovelace", displayName: "ada", avatarUrl: null },
+	{ id: "user-grace", name: "Grace Hopper", displayName: "grace", avatarUrl: null },
 ];
 
 const created: CalendarIssue = {
@@ -47,6 +52,7 @@ function seededClient(): QueryClient {
 	queryClient.setQueryData(["calendar", "teams"], { teams, defaultTeamIds: [] });
 	queryClient.setQueryData(["calendar", "labels"], { labels, requiresLabelMatch: true });
 	queryClient.setQueryData(["calendar", "states", "gtm"], states);
+	queryClient.setQueryData(["calendar", "members", "gtm"], members);
 	return queryClient;
 }
 
@@ -120,7 +126,7 @@ describe("useCreateIssue", () => {
 });
 
 describe("NewIssueDialog", () => {
-	test("creates an issue on the given date with the tags the user picks", async () => {
+	test("creates an issue on the given date with the tags and assignee the user picks", async () => {
 		const fetchMock = mockCreateResponse();
 		const onClose = vi.fn();
 		const queryClient = seededClient();
@@ -135,6 +141,10 @@ describe("NewIssueDialog", () => {
 
 		await userEvent.type(screen.getByLabelText("Title"), "Launch the docs refresh");
 		await userEvent.click(screen.getByRole("checkbox", { name: /web/ }));
+		// Unassigned until someone is picked; the picked member's id goes out.
+		await userEvent.click(screen.getByRole("button", { name: "Assignee" }));
+		await userEvent.click(screen.getByRole("button", { name: /grace/ }));
+		expect(screen.getByRole("button", { name: "Assignee" })).toHaveTextContent("grace");
 		await userEvent.click(screen.getByRole("button", { name: "Create issue" }));
 
 		const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
@@ -143,6 +153,7 @@ describe("NewIssueDialog", () => {
 			title: "Launch the docs refresh",
 			dueDate: "2026-06-15",
 			labelIds: ["gtm-web"],
+			assigneeId: "user-grace",
 		});
 		expect(onClose).toHaveBeenCalled();
 	});

@@ -51,7 +51,7 @@ Slated:
 - Opens any issue in a modal to read its description and edit the due date or
   tags. Clear the date to drop it off the calendar.
 - Creates issues in place. Hover a day, hit `+`, and set a title, team, due
-  date, status, priority, and tags.
+  date, status, priority, assignee, and tags.
 - Discovers your teams from Linear, then filters by team and label.
 
 ## Quickstart

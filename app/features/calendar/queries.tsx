@@ -13,6 +13,7 @@ import type {
 	IssuesQueryParams,
 	LabelsResponse,
 	ProjectsQueryParams,
+	TeamMember,
 	TeamsResponse,
 	WorkflowState,
 } from "./types";
@@ -189,6 +190,27 @@ export function useWorkflowStates(teamId: string | null) {
 	});
 }
 
+async function fetchTeamMembers(teamId: string): Promise<TeamMember[]> {
+	const res = await fetch(`/api/members?teamId=${encodeURIComponent(teamId)}`, {
+		headers: { Accept: "application/json" },
+	});
+	if (!res.ok) {
+		throw new Error(`Failed to load members (${res.status})`);
+	}
+	const json = (await res.json()) as { members: TeamMember[] };
+	return json.members;
+}
+
+/** The members of a team, for the assignee picker. */
+export function useTeamMembers(teamId: string | null) {
+	return useQuery({
+		queryKey: [ROOT, "members", teamId] as const,
+		queryFn: () => fetchTeamMembers(teamId as string),
+		enabled: Boolean(teamId),
+		staleTime: 5 * 60 * 1000, // team membership changes rarely
+	});
+}
+
 export function useIssueDescription(issueId: string | null) {
 	return useQuery({
 		queryKey: [ROOT, "issue", issueId] as const,
@@ -218,6 +240,8 @@ export type NewIssueInput = {
 	/** Omitted, Linear uses the team's default state. */
 	stateId?: string;
 	priority?: number;
+	/** Omitted, the issue is created unassigned. */
+	assigneeId?: string;
 };
 
 async function postNewIssue(input: NewIssueInput): Promise<CalendarIssue> {

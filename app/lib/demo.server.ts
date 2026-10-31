@@ -3,6 +3,7 @@ import type {
 	CalendarIssue,
 	CalendarProject,
 	LabelOption,
+	TeamMember,
 	TeamOption,
 	WorkflowState,
 } from "~/features/calendar/types";
@@ -69,7 +70,7 @@ const STATES: WorkflowState[] = [
 	{ id: "state-canceled", name: "Canceled", color: "#95a2b3", type: "cancelled", position: 5 },
 ];
 
-const PEOPLE = [
+const PEOPLE: TeamMember[] = [
 	{ id: "user-ada", name: "Ada Lovelace", displayName: "Ada Lovelace", avatarUrl: null },
 	{ id: "user-grace", name: "Grace Hopper", displayName: "Grace Hopper", avatarUrl: null },
 	{ id: "user-alan", name: "Alan Turing", displayName: "Alan Turing", avatarUrl: null },
@@ -717,6 +718,10 @@ export function demoStates(): WorkflowState[] {
 	return STATES;
 }
 
+export function demoMembers(): TeamMember[] {
+	return PEOPLE;
+}
+
 export function demoIssues(params: {
 	start: string;
 	end: string;
@@ -822,6 +827,7 @@ export function demoCreateIssue(input: {
 	labelIds?: string[];
 	stateId?: string;
 	priority?: number;
+	assigneeId?: string;
 }): CalendarIssue {
 	const team = TEAMS.find((candidate) => candidate.id === input.teamId) ?? TEAMS[0];
 	if (!team) {
@@ -840,7 +846,7 @@ export function demoCreateIssue(input: {
 		priority,
 		priorityLabel: PRIORITY_LABELS[priority] ?? "No priority",
 		state: asIssueState(state),
-		assignee: PEOPLE[0] ?? null,
+		assignee: PEOPLE.find((person) => person.id === input.assigneeId) ?? null,
 		labels: (input.labelIds ?? []).flatMap((id) => {
 			const label = LABELS.find((candidate) => id.startsWith(`label-${candidate.name}-`));
 			return label ? [{ id, name: label.name, color: label.color }] : [];

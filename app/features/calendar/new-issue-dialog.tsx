@@ -6,12 +6,13 @@ import { Input } from "@ngrok/mantle/input";
 import { Popover } from "@ngrok/mantle/popover";
 import { Select } from "@ngrok/mantle/select";
 import { TextArea } from "@ngrok/mantle/text-area";
-import { CalendarBlank, Check } from "@phosphor-icons/react";
+import { CalendarBlank, Check, UserCircle } from "@phosphor-icons/react";
 import { format, parseISO } from "date-fns";
 import { type FormEvent, useId, useState } from "react";
 import { toISODate } from "./date-utils";
+import { PersonAvatar } from "./person-avatar";
 import { PriorityIcon } from "./priority-icon";
-import { useCreateIssue, useLabels, useTeams, useWorkflowStates } from "./queries";
+import { useCreateIssue, useLabels, useTeamMembers, useTeams, useWorkflowStates } from "./queries";
 import { StatusIcon } from "./status-icon";
 import type { LabelOption } from "./types";
 
@@ -87,13 +88,17 @@ function NewIssueForm({
 	const [labelIds, setLabelIds] = useState<string[]>([]);
 	const [stateId, setStateId] = useState<string | null>(null);
 	const [priority, setPriority] = useState(0);
+	const [assigneeId, setAssigneeId] = useState<string | null>(null);
 	const [dateOpen, setDateOpen] = useState(false);
 	const [stateOpen, setStateOpen] = useState(false);
 	const [priorityOpen, setPriorityOpen] = useState(false);
+	const [assigneeOpen, setAssigneeOpen] = useState(false);
 
 	const { data: states = [] } = useWorkflowStates(teamId);
 	const selectedState = states.find((state) => state.id === stateId);
 	const selectedPriority = PRIORITIES.find((option) => option.value === priority);
+	const { data: members = [] } = useTeamMembers(teamId);
+	const selectedAssignee = members.find((member) => member.id === assigneeId);
 	// Only labels that exist in the chosen team can be applied to the issue.
 	const applicableLabels = teamId
 		? labelOptions.filter((option) => option.idByTeam[teamId] || option.globalIds.length > 0)
@@ -101,10 +106,11 @@ function NewIssueForm({
 
 	function changeTeam(nextTeamId: string) {
 		setTeamId(nextTeamId);
-		// Labels and statuses are team-scoped: carry the labels across by name and
-		// fall back to the new team's default status.
+		// Labels, statuses, and assignees are team-scoped: carry the labels across
+		// by name, fall back to the new team's default status, and unassign.
 		setLabelIds((prev) => labelIdsForTeam(labelOptions, prev, nextTeamId));
 		setStateId(null);
+		setAssigneeId(null);
 	}
 
 	function toggleTag(option: LabelOption) {
@@ -134,6 +140,7 @@ function NewIssueForm({
 				labelIds,
 				stateId: stateId ?? undefined,
 				priority,
+				assigneeId: assigneeId ?? undefined,
 			},
 			{ onSuccess: onCreated },
 		);
@@ -285,6 +292,58 @@ function NewIssueForm({
 											) : null}
 										</button>
 									))}
+								</Popover.Content>
+							</Popover.Root>
+						</section>
+
+						<section>
+							<SectionHeading>Assignee</SectionHeading>
+							<Popover.Root open={assigneeOpen} onOpenChange={setAssigneeOpen}>
+								<Popover.Trigger asChild>
+									<Button type="button" appearance="outlined" aria-label="Assignee">
+										{selectedAssignee ? (
+											<>
+												<PersonAvatar person={selectedAssignee} />
+												{selectedAssignee.displayName || selectedAssignee.name}
+											</>
+										) : (
+											<>
+												<UserCircle className="size-4 text-muted" />
+												Unassigned
+											</>
+										)}
+									</Button>
+								</Popover.Trigger>
+								<Popover.Content className="z-50 max-h-64 w-56 overflow-auto rounded-md border border-card bg-card p-1 text-strong shadow-lg">
+									{members.length === 0 ? (
+										<p className="px-2 py-1.5 text-sm text-muted">
+											{teamId ? "Loading people…" : "Select a team first."}
+										</p>
+									) : (
+										[null, ...members].map((member) => (
+											<button
+												key={member?.id ?? "unassigned"}
+												type="button"
+												className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+												onClick={() => {
+													setAssigneeId(member?.id ?? null);
+													setAssigneeOpen(false);
+												}}
+											>
+												{member ? (
+													<PersonAvatar person={member} />
+												) : (
+													<UserCircle className="size-4 shrink-0 text-muted" />
+												)}
+												<span className="flex-1 truncate">
+													{member ? member.displayName || member.name : "Unassigned"}
+												</span>
+												{(member?.id ?? null) === assigneeId ? (
+													<Check className="size-4 shrink-0 text-muted" />
+												) : null}
+											</button>
+										))
+									)}
 								</Popover.Content>
 							</Popover.Root>
 						</section>

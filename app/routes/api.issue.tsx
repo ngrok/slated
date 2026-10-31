@@ -23,8 +23,8 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 // Create an issue: POST { teamId, title, description?, dueDate?, labelIds?,
-// stateId?, priority? } -> Linear issueCreate. Responds with the new issue in
-// calendar shape so the client can place the card immediately.
+// stateId?, priority?, assigneeId? } -> Linear issueCreate. Responds with the
+// new issue in calendar shape so the client can place the card immediately.
 export async function action({ request }: Route.ActionArgs) {
 	const body = (await request.json()) as Partial<NewIssueInput>;
 	const title = body.title?.trim();
@@ -51,6 +51,7 @@ export async function action({ request }: Route.ActionArgs) {
 				...(body.labelIds?.length ? { labelIds: body.labelIds } : {}),
 				...(body.stateId ? { stateId: body.stateId } : {}),
 				...(body.priority !== undefined ? { priority: body.priority } : {}),
+				...(body.assigneeId ? { assigneeId: body.assigneeId } : {}),
 			}),
 		});
 	}
@@ -65,6 +66,7 @@ export async function action({ request }: Route.ActionArgs) {
 			...(body.labelIds?.length ? { labelIds: body.labelIds } : {}),
 			...(body.stateId ? { stateId: body.stateId } : {}),
 			...(body.priority !== undefined ? { priority: body.priority } : {}),
+			...(body.assigneeId ? { assigneeId: body.assigneeId } : {}),
 		},
 	});
 

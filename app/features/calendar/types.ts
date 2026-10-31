@@ -94,6 +94,9 @@ export type TeamOption = {
 	name: string;
 };
 
+/** Someone an issue can be assigned to, in the shape of an issue's assignee. */
+export type TeamMember = NonNullable<CalendarIssue["assignee"]>;
+
 export type TeamsResponse = {
 	teams: TeamOption[];
 	/** Team ids to preselect on first visit, from LINEAR_TEAM_DEFAULT. */

@@ -1,4 +1,9 @@
-import type { CalendarIssue, CalendarProject, WorkflowState } from "~/features/calendar/types";
+import type {
+	CalendarIssue,
+	CalendarProject,
+	TeamMember,
+	WorkflowState,
+} from "~/features/calendar/types";
 
 export type RawLabel = { id: string; name: string; color: string; teamId: string | null };
 export type RawTeam = { id: string; key: string; name: string };
@@ -418,6 +423,52 @@ export async function fetchWorkflowStates(
 	return states;
 }
 
+const TEAM_MEMBERS_QUERY = `
+query TeamMembers($teamId: String!, $first: Int!, $after: String) {
+  team(id: $teamId) {
+    members(first: $first, after: $after) {
+      pageInfo { hasNextPage endCursor }
+      nodes { id name displayName avatarUrl }
+    }
+  }
+}`;
+
+type TeamMembersData = {
+	team: {
+		members: {
+			pageInfo: { hasNextPage: boolean; endCursor: string | null };
+			nodes: TeamMember[];
+		};
+	};
+};
+
+/**
+ * The people an issue in this team can be assigned to. Linear leaves
+ * deactivated users out of `members` by default.
+ */
+export async function fetchTeamMembers(
+	authorization: string,
+	teamId: string,
+): Promise<TeamMember[]> {
+	const members: TeamMember[] = [];
+	let after: string | null = null;
+
+	for (let page = 0; page < 20; page++) {
+		const result: TeamMembersData = await linearGraphQL<TeamMembersData>(
+			authorization,
+			TEAM_MEMBERS_QUERY,
+			{ teamId, first: 250, after },
+		);
+		members.push(...result.team.members.nodes);
+		if (!result.team.members.pageInfo.hasNextPage) {
+			break;
+		}
+		after = result.team.members.pageInfo.endCursor;
+	}
+
+	return members.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 const CREATE_ISSUE_MUTATION = `
 mutation CreateIssue($input: IssueCreateInput!) {
   issueCreate(input: $input) {
@@ -437,6 +488,8 @@ export type NewIssueInput = {
 	/** Omitted, Linear uses the team's default state. */
 	stateId?: string;
 	priority?: number;
+	/** Omitted, the issue is created unassigned. */
+	assigneeId?: string;
 };
 
 /**
