@@ -99,8 +99,13 @@ export function IssuePanel({
 			if ((event.target as HTMLElement).closest("input, textarea, select, [contenteditable]")) {
 				return;
 			}
-			// An open picker, menu, or dialog owns the keyboard, Esc included.
-			if (document.querySelector("[data-radix-popper-content-wrapper], [role=dialog]")) {
+			// An open picker, menu, or dialog owns the keyboard, Esc included. A
+			// day's "+N more" popover doesn't: J and K step through it.
+			if (
+				document.querySelector(
+					"[data-radix-popper-content-wrapper]:not(:has([data-day-popover])), [role=dialog]:not([data-day-popover])",
+				)
+			) {
 				return;
 			}
 			// Stepping away from a half-filled new issue would throw it away.

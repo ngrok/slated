@@ -10,7 +10,7 @@ import {
 } from "@dnd-kit/core";
 import { cx } from "@ngrok/mantle/cx";
 import { useQueryClient } from "@tanstack/react-query";
-import { addMonths, startOfMonth } from "date-fns";
+import { addMonths, isWeekend, parseISO, startOfMonth } from "date-fns";
 import {
 	forwardRef,
 	useCallback,
@@ -23,7 +23,13 @@ import {
 	useSyncExternalStore,
 } from "react";
 import { Mark } from "~/components/wordmark";
-import { monthGridRange, toISODate, WEEKDAY_LABELS } from "./date-utils";
+import {
+	compareByPriority,
+	monthGridRange,
+	monthOwnedWeeks,
+	toISODate,
+	WEEKDAY_LABELS,
+} from "./date-utils";
 import { DRAG_DISTANCE_PX } from "./draggable-issue-card";
 import { IssueCard } from "./issue-card";
 import { IssuePanel } from "./issue-panel";
@@ -363,26 +369,64 @@ export const MonthList = forwardRef<
 		scrollToToday,
 		openNewIssue,
 	]);
-	// The grid already renders the visible issues in calendar order (weeks top
-	// to bottom, days left to right, cards top to bottom), filtered by the view
-	// options, so the next issue is simply the next card in the document. With
-	// nothing open, start from the first card in view.
+	// J and K follow the calendar's own order: day by day (weeks top to bottom,
+	// days left to right), and within a day by priority, the way DayCell lists
+	// them. It is built from the data rather than the cards in the document,
+	// because a busy day's overflow isn't rendered until its popover opens, and
+	// walking the document skipped it. Only the months on screen count, with the
+	// view options applied the way MonthSection applies them.
+	const stepOrder = useMemo(() => {
+		const firstWeek = months[0] ? monthOwnedWeeks(months[0])[0] : undefined;
+		const lastMonth = months[months.length - 1];
+		const lastWeek = lastMonth ? monthOwnedWeeks(lastMonth).at(-1) : undefined;
+		const start = firstWeek?.[0];
+		const end = lastWeek?.at(-1);
+		if (!start || !end) {
+			return NO_ISSUES;
+		}
+		const [from, to] = [toISODate(start), toISODate(end)];
+		return loadedIssues
+			.filter(
+				(issue) =>
+					issue.dueDate >= from &&
+					issue.dueDate <= to &&
+					(options.showCompleted || issue.state.type !== "completed") &&
+					(options.showSubtasks || !issue.parent) &&
+					(options.showWeekends || !isWeekend(parseISO(issue.dueDate))),
+			)
+			.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || compareByPriority(a, b));
+	}, [months, loadedIssues, options.showCompleted, options.showSubtasks, options.showWeekends]);
 	const stepIssue = useCallback(
 		(direction: 1 | -1) => {
 			const root = scrollRef.current;
-			const cards = [...(root?.querySelectorAll<HTMLElement>("[data-issue-id]") ?? [])];
-			const index = cards.findIndex((card) => card.dataset.issueId === selectedIssueId);
-			const viewTop = root?.getBoundingClientRect().top ?? 0;
-			const next =
-				index === -1
-					? cards.find((card) => card.getBoundingClientRect().top >= viewTop)
-					: cards[index + direction];
-			if (next?.dataset.issueId) {
-				setSelectedIssueId(next.dataset.issueId);
-				next.scrollIntoView({ block: "nearest" });
+			const index = stepOrder.findIndex((issue) => issue.id === selectedIssueId);
+			let next: { id: string; dueDate?: string } | undefined = stepOrder[index + direction];
+			if (index === -1) {
+				// Nothing open: start from the first card in view.
+				const viewTop = root?.getBoundingClientRect().top ?? 0;
+				const card = [...(root?.querySelectorAll<HTMLElement>("[data-issue-id]") ?? [])].find(
+					(candidate) => candidate.getBoundingClientRect().top >= viewTop,
+				);
+				next = card?.dataset.issueId ? { id: card.dataset.issueId } : undefined;
 			}
+			if (!next) {
+				return;
+			}
+			setSelectedIssueId(next.id);
+			// A card focused by an earlier click would keep its focus ring and read
+			// as a second selection.
+			const focused = document.activeElement;
+			if (focused instanceof HTMLElement && focused.closest("[data-issue-id]")) {
+				focused.blur();
+			}
+			// A card hidden in a day's overflow isn't on the grid; bring its day
+			// into view instead, and the day opens its popover (see DayCell).
+			const target =
+				root?.querySelector(`[data-issue-id="${next.id}"]`) ??
+				(next.dueDate ? root?.querySelector(`[data-date="${next.dueDate}"]`) : null);
+			target?.scrollIntoView({ block: "nearest" });
 		},
-		[selectedIssueId],
+		[selectedIssueId, stepOrder],
 	);
 
 	// Drag-to-reschedule across the whole visible list. A card carries either an

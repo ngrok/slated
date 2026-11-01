@@ -3,10 +3,11 @@ import { cx } from "@ngrok/mantle/cx";
 import { Popover } from "@ngrok/mantle/popover";
 import { Plus } from "@phosphor-icons/react";
 import { format } from "date-fns";
-import { forwardRef, memo, useState } from "react";
+import { forwardRef, memo, useContext, useEffect, useRef, useState } from "react";
 import { toISODate } from "./date-utils";
 import { DraggableIssueCard } from "./draggable-issue-card";
 import { DraggableProjectCard } from "./draggable-project-card";
+import { SelectedIssueContext } from "./selected-issue";
 import type { CalendarIssue, CalendarProject } from "./types";
 
 // Every day is the same height, sized for this many cards, so a week reads as a
@@ -53,9 +54,43 @@ export const DayCell = memo(
 		const visibleProjects = projects.slice(0, shown);
 		const visibleIssues = issues.slice(0, Math.max(0, shown - projects.length));
 
+		// When the issue open in the panel is one hidden in this day's overflow,
+		// as J and K can make it, the popover opens so the selection stays on
+		// screen, and closes again once the selection moves on. It doesn't take
+		// focus either way, so the keys keep stepping (see IssuePanel).
+		const selectedId = useContext(SelectedIssueContext);
+		const selectedHidden =
+			selectedId !== null &&
+			issues.some((issue) => issue.id === selectedId) &&
+			!visibleIssues.some((issue) => issue.id === selectedId);
+		const openedForSelection = useRef(false);
+		const popoverRef = useRef<HTMLDivElement>(null);
+		useEffect(() => {
+			if (selectedHidden) {
+				openedForSelection.current = true;
+				setMoreOpen(true);
+			} else if (openedForSelection.current) {
+				setMoreOpen(false);
+			}
+		}, [selectedHidden]);
+		useEffect(() => {
+			if (moreOpen && selectedId) {
+				popoverRef.current
+					?.querySelector(`[data-issue-id="${selectedId}"]`)
+					?.scrollIntoView({ block: "nearest" });
+			}
+		}, [moreOpen, selectedId]);
+		function changeMoreOpen(open: boolean) {
+			if (open) {
+				openedForSelection.current = false;
+			}
+			setMoreOpen(open);
+		}
+
 		return (
 			<div
 				ref={setRefs}
+				data-date={toISODate(date)}
 				className={cx(
 					"group flex flex-col gap-1.5 overflow-hidden border-b border-l border-card-muted p-1.5 transition-colors",
 					DAY_HEIGHT,
@@ -95,7 +130,7 @@ export const DayCell = memo(
 						<DraggableIssueCard key={issue.id} issue={issue} onOpen={onOpenIssue} />
 					))}
 					{hidden > 0 ? (
-						<Popover.Root open={moreOpen} onOpenChange={setMoreOpen}>
+						<Popover.Root open={moreOpen} onOpenChange={changeMoreOpen}>
 							<Popover.Trigger asChild>
 								<button
 									type="button"
@@ -105,8 +140,20 @@ export const DayCell = memo(
 								</button>
 							</Popover.Trigger>
 							<Popover.Content
+								ref={popoverRef}
 								align="start"
+								data-day-popover=""
 								aria-label={format(date, "EEEE, MMMM d")}
+								onOpenAutoFocus={(event) => {
+									if (openedForSelection.current) {
+										event.preventDefault();
+									}
+								}}
+								onCloseAutoFocus={(event) => {
+									if (openedForSelection.current) {
+										event.preventDefault();
+									}
+								}}
 								className="z-50 flex max-h-96 w-64 flex-col gap-1.5 overflow-y-auto rounded-md border border-card bg-base p-2 text-strong shadow-lg"
 							>
 								<p className="px-1 pb-0.5 text-xs font-medium text-muted">
@@ -116,14 +163,7 @@ export const DayCell = memo(
 									<DraggableProjectCard key={project.id} project={project} />
 								))}
 								{issues.map((issue) => (
-									<DraggableIssueCard
-										key={issue.id}
-										issue={issue}
-										onOpen={(opened) => {
-											setMoreOpen(false);
-											onOpenIssue(opened);
-										}}
-									/>
+									<DraggableIssueCard key={issue.id} issue={issue} onOpen={onOpenIssue} />
 								))}
 							</Popover.Content>
 						</Popover.Root>
