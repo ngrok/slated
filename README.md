@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ngrok/slated/actions/workflows/ci.yml"><img src="https://github.com/ngrok/slated/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="https://github.com/ngrok-adhoc/slated/actions/workflows/ci.yml"><img src="https://github.com/ngrok-adhoc/slated/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
 </p>
 
@@ -80,7 +80,7 @@ You need [Node](https://nodejs.org) 20 or newer,
 [linear.app/settings/api](https://linear.app/settings/api).
 
 ```bash
-git clone https://github.com/ngrok/slated.git
+git clone https://github.com/ngrok-adhoc/slated.git
 cd slated
 pnpm install
 pnpm setup:env    # asks for your API key, writes .env (not `pnpm setup`)
@@ -164,10 +164,10 @@ Anything other people can reach needs access control in front of it.
 A container image ships for every commit on `main`:
 
 ```bash
-docker run --rm -p 3000:3000 --env-file .env ghcr.io/ngrok/slated:latest
+docker run --rm -p 3000:3000 --env-file .env ghcr.io/ngrok-adhoc/slated:latest
 ```
 
-Pin an exact build with `ghcr.io/ngrok/slated:sha-<commit>`, or build it
+Pin an exact build with `ghcr.io/ngrok-adhoc/slated:sha-<commit>`, or build it
 yourself:
 
 ```bash

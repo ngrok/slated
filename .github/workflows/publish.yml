@@ -1,7 +1,7 @@
 # Publishes the Slated container image to GitHub Container Registry, so it can
 # be run without cloning or building anything:
 #
-#   docker run --rm -p 3000:3000 --env-file .env ghcr.io/ngrok/slated:latest
+#   docker run --rm -p 3000:3000 --env-file .env ghcr.io/ngrok-adhoc/slated:latest
 #
 # `main` moves `latest`; a `v*` tag publishes the matching version tags. Both
 # also publish an immutable `sha-<commit>` tag.
@@ -18,7 +18,7 @@ jobs:
     # Pushes to ngrok's package namespace, so it can only work in this repo.
     # Skipped in forks, which otherwise start publishing packages nobody asked
     # for. Drop this line (and change the image name) to publish your own.
-    if: github.repository == 'ngrok/slated'
+    if: github.repository == 'ngrok-adhoc/slated'
     runs-on: ubuntu-latest
     permissions:
       contents: read

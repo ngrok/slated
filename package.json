@@ -4,12 +4,12 @@
 	"private": true,
 	"description": "A content calendar that runs live on top of Linear.",
 	"license": "MIT",
-	"homepage": "https://github.com/ngrok/slated",
+	"homepage": "https://github.com/ngrok-adhoc/slated",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/ngrok/slated.git"
+		"url": "git+https://github.com/ngrok-adhoc/slated.git"
 	},
-	"bugs": "https://github.com/ngrok/slated/issues",
+	"bugs": "https://github.com/ngrok-adhoc/slated/issues",
 	"type": "module",
 	"sideEffects": false,
 	"scripts": {
