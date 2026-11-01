@@ -17,7 +17,7 @@ import {
 } from "@phosphor-icons/react";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
-import { toISODate } from "./date-utils";
+import { compareByPriority, toISODate } from "./date-utils";
 import { NewIssueForm } from "./new-issue-form";
 import { PersonAvatar } from "./person-avatar";
 import { assigneeOptions, Picker, UNASSIGNED } from "./picker";
@@ -201,10 +201,13 @@ function isUnfinished(issue: CalendarIssue): boolean {
 }
 
 /**
- * The overview's two lists, soonest first. "Due next" starts a week back so an
- * issue that slipped stays in view instead of dropping off the day after its
- * date; further back than that depends on how far the calendar has been
- * scrolled, so it is left out.
+ * The overview's lists. "Today" is the whole day, still-open work first in
+ * the calendar's priority order and finished work after it, so the day's
+ * progress shows too; canceled issues are dropped. The other lists run
+ * soonest first. "Due next" skips today, which has its own list, and starts a
+ * week back so an issue that slipped stays in view instead of dropping off the
+ * day after its date; further back than that depends on how far the calendar
+ * has been scrolled, so it is left out.
  */
 export function overviewSections(issues: CalendarIssue[], today: Date) {
 	const daysAway = (issue: CalendarIssue) =>
@@ -213,8 +216,13 @@ export function overviewSections(issues: CalendarIssue[], today: Date) {
 		.filter(isUnfinished)
 		.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.identifier.localeCompare(b.identifier));
 	return {
+		today: issues
+			.filter((issue) => daysAway(issue) === 0 && issue.state.type !== "canceled")
+			.sort(
+				(a, b) => Number(!isUnfinished(a)) - Number(!isUnfinished(b)) || compareByPriority(a, b),
+			),
 		dueNext: open
-			.filter((issue) => daysAway(issue) >= -OVERDUE_LOOKBACK_DAYS)
+			.filter((issue) => daysAway(issue) !== 0 && daysAway(issue) >= -OVERDUE_LOOKBACK_DAYS)
 			.slice(0, MAX_DUE_NEXT),
 		unassigned: open.filter((issue) => {
 			const days = daysAway(issue);
@@ -251,10 +259,23 @@ function Overview({
 	onOpenIssue: (issue: CalendarIssue) => void;
 }) {
 	const today = useToday();
-	const { dueNext, unassigned } = useMemo(() => overviewSections(issues, today), [issues, today]);
+	const sections = useMemo(() => overviewSections(issues, today), [issues, today]);
+	const { dueNext, unassigned } = sections;
+	const doneToday = sections.today.filter((issue) => !isUnfinished(issue)).length;
 
 	return (
 		<div className="flex flex-1 flex-col gap-6 p-4">
+			<OverviewList
+				title={`Today, ${format(today, "EEEE MMM d")}`}
+				aside={
+					sections.today.length > 0 ? `${doneToday} of ${sections.today.length} done` : undefined
+				}
+				empty="Nothing due today."
+				issues={sections.today}
+				today={today}
+				showDue={false}
+				onOpenIssue={onOpenIssue}
+			/>
 			<OverviewList
 				title="Due next, not done"
 				empty="Nothing unfinished coming up."
@@ -278,20 +299,29 @@ function Overview({
 
 function OverviewList({
 	title,
+	aside,
 	empty,
 	issues,
 	today,
+	showDue = true,
 	onOpenIssue,
 }: {
 	title: string;
+	/** A short note at the right of the heading, such as progress. */
+	aside?: string;
 	empty: string;
 	issues: CalendarIssue[];
 	today: Date;
+	/** Off for a list that is all one day, where every row would say the same. */
+	showDue?: boolean;
 	onOpenIssue: (issue: CalendarIssue) => void;
 }) {
 	return (
 		<section aria-label={title}>
-			<h3 className="pb-2 text-sm text-muted">{title}</h3>
+			<div className="flex items-baseline justify-between gap-2 pb-2">
+				<h3 className="text-sm text-muted">{title}</h3>
+				{aside ? <span className="text-xs text-muted">{aside}</span> : null}
+			</div>
 			{issues.length === 0 ? (
 				<p className="text-sm text-muted">{empty}</p>
 			) : (
@@ -311,12 +341,24 @@ function OverviewList({
 										label={issue.state.name}
 										className="size-4 shrink-0"
 									/>
-									<span className="min-w-0 flex-1 truncate text-strong">{issue.title}</span>
 									<span
-										className={cx("shrink-0 text-xs", due.late ? "text-danger-600" : "text-muted")}
+										className={cx(
+											"min-w-0 flex-1 truncate",
+											isUnfinished(issue) ? "text-strong" : "text-muted",
+										)}
 									>
-										{due.text}
+										{issue.title}
 									</span>
+									{showDue ? (
+										<span
+											className={cx(
+												"shrink-0 text-xs",
+												due.late ? "text-danger-600" : "text-muted",
+											)}
+										>
+											{due.text}
+										</span>
+									) : null}
 									{issue.assignee ? <PersonAvatar person={issue.assignee} /> : null}
 								</button>
 							</li>

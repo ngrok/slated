@@ -143,7 +143,7 @@ test("the description saves on Cmd+Enter and Esc drops the draft", async () => {
 	expect(screen.getByText("New words")).toBeTruthy();
 });
 
-test("the overview lists unfinished work soonest first and this week's unassigned issues", () => {
+test("the overview leads with today, then unfinished work soonest first and this week's unassigned issues", () => {
 	const today = new Date(2026, 5, 15);
 	const at = (id: string, dueDate: string, extra: Partial<CalendarIssue> = {}): CalendarIssue => ({
 		...issue,
@@ -158,25 +158,30 @@ test("the overview lists unfinished work soonest first and this week's unassigne
 		at("later", "2026-06-30"),
 		at("week-late", "2026-06-08"),
 		at("too-late", "2026-06-07"),
-		at("done", "2026-06-15", { state: done }),
+		at("done-urgent", "2026-06-15", { state: done, priority: 1 }),
+		at("canceled-today", "2026-06-15", { state: canceled }),
 		at("canceled", "2026-06-16", { state: canceled, assignee: null }),
-		at("today", "2026-06-15"),
+		at("today-none", "2026-06-15"),
+		at("today-high", "2026-06-15", { priority: 2 }),
 		at("free-yesterday", "2026-06-14", { assignee: null }),
 		at("free-day-7", "2026-06-22", { assignee: null }),
 		at("free-day-8", "2026-06-23", { assignee: null }),
 	];
 
-	const { dueNext, unassigned } = overviewSections(issues, today);
+	const sections = overviewSections(issues, today);
 
-	// A week back is still "due next"; eight days back has scrolled out of scope.
-	// Finished and canceled work never shows, and the list stops at five.
-	expect(dueNext.map((i) => i.id)).toEqual([
+	// Open work first by priority (no priority after High), finished work after
+	// it even when urgent, and nothing canceled.
+	expect(sections.today.map((i) => i.id)).toEqual(["today-high", "today-none", "done-urgent"]);
+	// Today has its own list, so "due next" skips it. A week back still counts;
+	// eight days back has scrolled out of scope. The list stops at five.
+	expect(sections.dueNext.map((i) => i.id)).toEqual([
 		"week-late",
 		"free-yesterday",
-		"today",
 		"free-day-7",
 		"free-day-8",
+		"later",
 	]);
 	// Only today through day 7: yesterday's is late, not upcoming.
-	expect(unassigned.map((i) => i.id)).toEqual(["free-day-7"]);
+	expect(sections.unassigned.map((i) => i.id)).toEqual(["free-day-7"]);
 });

@@ -75,19 +75,25 @@ function groupByDate<T>(items: T[], dateOf: (item: T) => string): Map<string, T[
 const priorityRank = (issue: CalendarIssue) => issue.priority || Number.POSITIVE_INFINITY;
 
 /**
+ * Most urgent first, no priority last; ties fall back to the identifier so
+ * cards don't shuffle between renders.
+ */
+export function compareByPriority(a: CalendarIssue, b: CalendarIssue): number {
+	return (
+		priorityRank(a) - priorityRank(b) ||
+		a.identifier.localeCompare(b.identifier, undefined, { numeric: true })
+	);
+}
+
+/**
  * Bucket issues by their dueDate, the day the calendar places them on, most
  * urgent first. A day tile shows only its first few cards, so this decides
- * which stay visible; ties fall back to the identifier so cards don't shuffle
- * between renders.
+ * which stay visible.
  */
 export function groupIssuesByDueDate(issues: CalendarIssue[]): Map<string, CalendarIssue[]> {
 	const byDate = groupByDate(issues, (issue) => issue.dueDate);
 	for (const day of byDate.values()) {
-		day.sort(
-			(a, b) =>
-				priorityRank(a) - priorityRank(b) ||
-				a.identifier.localeCompare(b.identifier, undefined, { numeric: true }),
-		);
+		day.sort(compareByPriority);
 	}
 	return byDate;
 }
