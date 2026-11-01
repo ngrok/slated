@@ -30,31 +30,48 @@ we didn't have was a nice way to see what's coming, or to share it with the rest
 of the team. Slated is exactly that, designed around simplicity and performance
 from the start.
 
+<p align="center">
+  <img src="docs/screenshot.png" alt="The Slated calendar: issue cards on their due dates across a month, one busy day's '+N more' list open with an issue selected, and the side panel showing that issue's status, assignee, priority, due date, project, description, and tags.">
+</p>
+
 <!--
-  TODO: add the lead screenshot at docs/screenshot.png, then uncomment.
-  Run `pnpm demo` and capture the month grid at http://localhost:3100 at 1440px
-  wide. It needs no API key and generates the same workspace every time.
-  <p align="center">
-    <img src="docs/screenshot.png" alt="The Slated month grid, with issue cards placed on their due dates.">
-  </p>
+  To retake: run `pnpm demo`, open http://localhost:3100 at 1440x900 with a 2x
+  device scale, open a busy day's "+N more" list, click an issue in it, and
+  capture the window. GitHub shows READMEs about 838px wide, so a wider capture
+  only shrinks the text. The demo is anchored on today, so the cards change
+  from day to day.
 -->
 
 ## What you get
 
-Slated:
+**A calendar of your Linear issues.** Every issue sits on its due date and every
+project on its target date, both treated as the publish date. Every day is the
+same size, so a week reads at a glance: a busy day shows its first cards and a
+**+N more** link that opens the whole day. Within a day, projects come first,
+then issues from most to least urgent.
 
-- Places every issue on a month grid by its due date, and every project by its
-  target date, both treated as the publish date. Projects switch off under
-  **Options**.
-- Reschedules an issue or project the moment you drop it on a new day. The card
-  moves first, then rolls back if Linear rejects the write.
-- Opens any issue in a side panel beside the calendar to edit its status,
-  assignee, priority, due date, project, description, and tags. `J` and `K` step
-  through the issues on the calendar. Clear the date to drop it off the
-  calendar, with an undo.
-- Creates issues in place. Hover a day, hit `+`, and set a title, team, due
-  date, status, priority, assignee, and tags.
-- Discovers your teams from Linear, then filters by team and label.
+**Drag to reschedule.** Drop an issue or project on a new day, including from a
+day's **+N more** list. The card moves first, then rolls back if Linear rejects
+the write.
+
+**A side panel for everything else.** Click an issue to edit its status,
+assignee, priority, due date, project, and description, and to add or remove
+tags. Clear the date to drop it off the calendar, with an undo. On a wide screen
+the panel is always open, and with no issue selected it shows what's on deck:
+what's due today and how much of it is done, the next unfinished issues, and
+anything unassigned in the coming week.
+
+**New issues in place.** Hit **+** for one due today, or hover a day and hit its
+**+**. Set the title, description, team, due date, status, priority, assignee,
+and tags, and the new issue opens in the panel.
+
+**Keyboard friendly.** `J` and `K` step through the issues in calendar order,
+opening a busy day's list when the next issue is tucked inside it. `Esc`
+closes the panel, and `⌘ Enter` (`Ctrl Enter` off a Mac) saves a description.
+
+**Your teams, your labels.** Slated discovers your teams from Linear. The
+**Options** menu filters by team and label, shows or hides weekends, completed
+issues, sub-tasks, and projects, and switches the theme.
 
 ## Quickstart
 
@@ -100,8 +117,8 @@ pnpm install
 pnpm demo         # http://localhost:3100
 ```
 
-There's no `.env` and no Linear request. Dragging and the new-issue dialog work,
-with edits held in memory until you stop the server. It runs on 3100 so it won't
+There's no `.env` and no Linear request. Dragging, editing, and creating issues
+all work, with edits held in memory until you stop the server. It runs on 3100 so it won't
 collide with a real instance on 3000.
 
 It's deterministic and anchored on today: the same day holds the same cards on
@@ -136,8 +153,9 @@ unfiltered views narrowed to issues carrying one.
 
 Projects filter the same way, first by selected teams and then by
 `LINEAR_PROJECT_LABEL`. Project labels are workspace-level in Linear rather than
-per-team, so this one is a plain name instead of a prefix. The header's label
-filter doesn't touch projects: Linear keeps the two label sets separate.
+per-team, so this one is a plain name instead of a prefix. The label filter
+under **Options** doesn't touch projects: Linear keeps the two label sets
+separate.
 
 ## Deploying
 
