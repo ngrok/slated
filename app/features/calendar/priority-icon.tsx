@@ -1,6 +1,16 @@
 import { cx } from "@ngrok/mantle/cx";
 
 // Linear priority scale: 0 none, 1 urgent, 2 high, 3 medium, 4 low.
+
+/** Linear's priorities, in the order Linear's own menu lists them. */
+export const PRIORITIES = [
+	{ value: 0, label: "No priority" },
+	{ value: 1, label: "Urgent" },
+	{ value: 2, label: "High" },
+	{ value: 3, label: "Medium" },
+	{ value: 4, label: "Low" },
+];
+
 const FILLED_BARS: Record<number, number> = { 2: 3, 3: 2, 4: 1 };
 
 const BARS = [

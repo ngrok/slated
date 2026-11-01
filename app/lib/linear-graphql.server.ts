@@ -1,4 +1,9 @@
-import type { CalendarIssue, CalendarProject, WorkflowState } from "~/features/calendar/types";
+import type {
+	CalendarIssue,
+	CalendarProject,
+	TeamMember,
+	WorkflowState,
+} from "~/features/calendar/types";
 
 export type RawLabel = { id: string; name: string; color: string; teamId: string | null };
 export type RawTeam = { id: string; key: string; name: string };
@@ -418,6 +423,106 @@ export async function fetchWorkflowStates(
 	return states;
 }
 
+const TEAM_MEMBERS_QUERY = `
+query TeamMembers($teamId: String!, $first: Int!, $after: String) {
+  team(id: $teamId) {
+    members(first: $first, after: $after) {
+      pageInfo { hasNextPage endCursor }
+      nodes { id name displayName avatarUrl }
+    }
+  }
+}`;
+
+type TeamMembersData = {
+	team: {
+		members: {
+			pageInfo: { hasNextPage: boolean; endCursor: string | null };
+			nodes: TeamMember[];
+		};
+	};
+};
+
+/**
+ * The people an issue in this team can be assigned to. Linear leaves
+ * deactivated users out of `members` by default.
+ */
+export async function fetchTeamMembers(
+	authorization: string,
+	teamId: string,
+): Promise<TeamMember[]> {
+	const members: TeamMember[] = [];
+	let after: string | null = null;
+
+	for (let page = 0; page < 20; page++) {
+		const result: TeamMembersData = await linearGraphQL<TeamMembersData>(
+			authorization,
+			TEAM_MEMBERS_QUERY,
+			{ teamId, first: 250, after },
+		);
+		members.push(...result.team.members.nodes);
+		if (!result.team.members.pageInfo.hasNextPage) {
+			break;
+		}
+		after = result.team.members.pageInfo.endCursor;
+	}
+
+	return members.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+const TEAM_PROJECTS_QUERY = `
+query TeamProjects($teamId: String!, $first: Int!, $after: String) {
+  team(id: $teamId) {
+    projects(
+      first: $first
+      after: $after
+      filter: { status: { type: { nin: ["completed", "canceled"] } } }
+    ) {
+      pageInfo { hasNextPage endCursor }
+      nodes { id name url }
+    }
+  }
+}`;
+
+type TeamProject = NonNullable<CalendarIssue["project"]>;
+
+type TeamProjectsData = {
+	team: {
+		projects: {
+			pageInfo: { hasNextPage: boolean; endCursor: string | null };
+			nodes: TeamProject[];
+		};
+	};
+};
+
+/**
+ * The projects an issue in this team can move into. Finished and canceled
+ * projects are left out, the way Linear's own project menu leads with open
+ * ones. The nodes carry no nested connections, so a page of 100 stays cheap
+ * (see the project page-size note above).
+ */
+export async function fetchTeamProjects(
+	authorization: string,
+	teamId: string,
+): Promise<TeamProject[]> {
+	const projects: TeamProject[] = [];
+	let after: string | null = null;
+
+	for (let page = 0; page < 10; page++) {
+		const result: TeamProjectsData = await linearGraphQL<TeamProjectsData>(
+			authorization,
+			TEAM_PROJECTS_QUERY,
+			{ teamId, first: 100, after },
+		);
+		projects.push(...result.team.projects.nodes);
+		if (!result.team.projects.pageInfo.hasNextPage) {
+			break;
+		}
+		after = result.team.projects.pageInfo.endCursor;
+	}
+
+	return projects.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 const CREATE_ISSUE_MUTATION = `
 mutation CreateIssue($input: IssueCreateInput!) {
   issueCreate(input: $input) {
@@ -437,6 +542,8 @@ export type NewIssueInput = {
 	/** Omitted, Linear uses the team's default state. */
 	stateId?: string;
 	priority?: number;
+	/** Omitted, the issue is created unassigned. */
+	assigneeId?: string;
 };
 
 /**
@@ -456,6 +563,41 @@ export async function createIssue(params: {
 	}
 	const issue = data.issueCreate.issue;
 	return { ...issue, labels: issue.labels.nodes };
+}
+
+// Linear's priority scale: 0 none, 1 urgent, 2 high, 3 medium, 4 low.
+export const MAX_PRIORITY = 4;
+
+const UPDATE_ISSUE_MUTATION = `
+mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) {
+  issueUpdate(id: $id, input: $input) {
+    success
+  }
+}`;
+
+/**
+ * Set any of an issue's assignee, priority, project, and description in one
+ * write. A null assignee or project removes it.
+ */
+export async function updateIssue(params: {
+	authorization: string;
+	issueId: string;
+	input: {
+		assigneeId?: string | null;
+		priority?: number;
+		projectId?: string | null;
+		/** Markdown; an empty string clears it. */
+		description?: string;
+	};
+}): Promise<void> {
+	const data = await linearGraphQL<{ issueUpdate: { success: boolean } }>(
+		params.authorization,
+		UPDATE_ISSUE_MUTATION,
+		{ id: params.issueId, input: params.input },
+	);
+	if (!data.issueUpdate.success) {
+		throw new Error("Linear did not accept the issue update");
+	}
 }
 
 const UPDATE_STATE_MUTATION = `

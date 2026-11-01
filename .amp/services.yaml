@@ -1,0 +1,9 @@
+services:
+  # The generated demo workspace: no Linear API key, no requests to Linear.
+  demo:
+    command: pnpm exec react-router dev --host 0.0.0.0 --port "$PORT"
+    env:
+      SLATED_DEMO: "1"
+    portal:
+      title: Slated (demo)
+      description: A generated workspace. Nothing is read from or written to Linear.

@@ -1,20 +1,16 @@
 import { Button } from "@ngrok/mantle/button";
 import { Plus } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Wordmark } from "~/components/wordmark";
+import { useEffect, useMemo, useRef } from "react";
 import { toISODate } from "./date-utils";
-import { FilterBar, useCalendarFilters } from "./filters";
+import { FilterMenus, useCalendarFilters } from "./filters";
 import { MonthList, type MonthListHandle } from "./month-list";
-import { NewIssueDialog } from "./new-issue-dialog";
 import { OptionsMenu } from "./options-menu";
 import { useLabels, useTeams } from "./queries";
 import { useViewOptions } from "./view-options";
 
 export function CalendarPage({
-	organization,
 	projectLabel,
 }: {
-	organization: { name: string } | null;
 	/** Project label names from LINEAR_PROJECT_LABEL, shown beside the toggle. */
 	projectLabel: string[];
 }) {
@@ -91,9 +87,6 @@ export function CalendarPage({
 		labelsQuery.isSuccess &&
 		filters.teamIds.length > 0 &&
 		(!requiresLabelMatch || effectiveLabelIds.length > 0);
-	// The due date the new-issue dialog opens on; null while it's closed.
-	const [newIssueDate, setNewIssueDate] = useState<string | null>(null);
-	const openNewIssue = useCallback((dueDate: string) => setNewIssueDate(dueDate), []);
 	const issueQueryBlockedMessage = labelsQuery.isSuccess
 		? requiresLabelMatch && effectiveLabelIds.length === 0
 			? "No labels match the configured namespace."
@@ -101,71 +94,61 @@ export function CalendarPage({
 		: "Loading labels…";
 
 	return (
-		<div className="flex h-dvh flex-col">
-			<header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-card p-4 sm:px-6 sm:py-4">
-				<div className="flex items-center gap-2">
-					<h1>
-						<Wordmark />
-					</h1>
-					{organization ? (
-						<span className="truncate text-xl tracking-tight text-muted">
-							@ {organization.name}
-						</span>
-					) : null}
-				</div>
-				{/* Everything that acts on the calendar lives in one cluster on the
-				    right, ordered by how far it reaches: filters narrow which issues
-				    load, Today moves the current view, then the write action. Options
-				    holds the rest: view toggles, theme, and refresh. */}
-				<div className="ml-auto flex flex-wrap items-center gap-2">
-					<FilterBar
-						teams={teams}
-						teamsLoading={teamsQuery.isLoading}
-						teamIds={filters.teamIds}
-						labelIds={filters.labelIds}
-						labels={visibleLabels}
-						onToggleTeam={filters.toggleTeam}
-						onToggleLabelGroup={filters.toggleLabelGroup}
-						onClearLabels={filters.clearLabels}
-					/>
-					<Button
-						type="button"
-						appearance="outlined"
-						onClick={() => listRef.current?.scrollToToday()}
-					>
-						Today
-					</Button>
-					{/* Keeps the write action apart from the controls that only change
-					    what is already on screen. */}
-					<span aria-hidden="true" className="mx-1 h-6 border-l border-card" />
-					<Button
-						type="button"
-						appearance="filled"
-						icon={<Plus />}
-						onClick={() => openNewIssue(toISODate(new Date()))}
-					>
-						New issue
-					</Button>
-					<OptionsMenu options={options} onToggle={toggle} projectLabel={projectLabel} />
-				</div>
+		// Narrow screens stack the header over the calendar. Wide ones give the
+		// calendar the full height on the left and stack the header over the
+		// always-open issue panel on the right; MonthList renders the calendar
+		// and the panel as two cells of this grid.
+		<div className="flex h-dvh flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_26rem] lg:grid-rows-[auto_minmax(0,1fr)]">
+			{/* Three controls and nothing else: Today moves the view, + starts an
+			    issue, and Options holds the filters, view toggles, theme, and
+			    refresh. The mark lives in the calendar's top-left corner. h-12
+			    matches the calendar's weekday row so their borders line up. */}
+			<header className="flex h-12 shrink-0 items-center justify-end gap-2 border-b border-card px-4 lg:col-start-2 lg:row-start-1 lg:border-l">
+				<Button
+					type="button"
+					appearance="outlined"
+					onClick={() => listRef.current?.scrollToToday()}
+				>
+					Today
+				</Button>
+				{/* IconButton has no filled style, and the one write action should
+				    still stand out, so this is a square filled Button. ps-0 clears the
+				    icon padding Button adds, which pushes a lone icon off-center. */}
+				<Button
+					type="button"
+					appearance="filled"
+					aria-label="New issue"
+					title="New issue"
+					icon={<Plus />}
+					className="aspect-square px-0 ps-0"
+					onClick={() => listRef.current?.newIssue(toISODate(new Date()))}
+				/>
+				<OptionsMenu
+					options={options}
+					onToggle={toggle}
+					projectLabel={projectLabel}
+					filters={
+						<FilterMenus
+							teams={teams}
+							teamsLoading={teamsQuery.isLoading}
+							teamIds={filters.teamIds}
+							labelIds={filters.labelIds}
+							labels={visibleLabels}
+							onToggleTeam={filters.toggleTeam}
+							onToggleLabelGroup={filters.toggleLabelGroup}
+							onClearLabels={filters.clearLabels}
+						/>
+					}
+				/>
 			</header>
 
-			<main className="flex min-h-0 flex-1 flex-col">
-				<MonthList
-					ref={listRef}
-					teamIds={filters.teamIds}
-					labelIds={effectiveLabelIds}
-					options={options}
-					canFetchIssues={canFetchIssues}
-					blockedMessage={issueQueryBlockedMessage}
-					onNewIssue={openNewIssue}
-				/>
-			</main>
-
-			<NewIssueDialog
-				date={newIssueDate}
-				onClose={() => setNewIssueDate(null)}
-				defaultTeamId={filters.teamIds[0] ?? null}
+			<MonthList
+				ref={listRef}
+				teamIds={filters.teamIds}
+				labelIds={effectiveLabelIds}
+				options={options}
+				canFetchIssues={canFetchIssues}
+				blockedMessage={issueQueryBlockedMessage}
 			/>
 		</div>
 	);

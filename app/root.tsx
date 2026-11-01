@@ -67,9 +67,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				<MantleStyleSheets {...themeUrls} ssrCookie={rootData?.themeCookie} />
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
-				{/* The brand blue, for the browser chrome on Android and on macOS
+				{/* The mark's slate, for the browser chrome on Android and on macOS
 				    Safari's tab bar. */}
-				<meta name="theme-color" content="#0078C4" />
+				<meta name="theme-color" content="#45556C" />
 				<Meta />
 				<Links />
 			</head>

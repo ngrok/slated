@@ -1,4 +1,3 @@
-import { ArrowSquareOut, FolderOpen } from "@phosphor-icons/react";
 import { memo } from "react";
 import { PersonAvatar } from "./person-avatar";
 import { PriorityIcon } from "./priority-icon";
@@ -13,7 +12,7 @@ export const IssueCard = memo(function IssueCard({ issue }: { issue: CalendarIss
 	const extraLabels = issue.labels.length - MAX_LABEL_DOTS;
 
 	return (
-		<div className="group/card flex flex-col gap-1 rounded-md border border-card bg-card px-2 py-1.5 text-left shadow-sm transition-colors hover:bg-card-hover">
+		<div className="flex flex-col gap-1 rounded-md border border-card bg-card px-2 py-1.5 text-left shadow-sm transition-colors hover:bg-card-hover">
 			<div className="flex items-center gap-1.5">
 				<StatusIcon type={issue.state.type} color={issue.state.color} label={issue.state.name} />
 				<p className="truncate text-sm font-medium leading-snug text-strong" title={issue.title}>
@@ -42,36 +41,13 @@ export const IssueCard = memo(function IssueCard({ issue }: { issue: CalendarIss
 				))}
 				{extraLabels > 0 ? <span className="text-[10px] text-muted">+{extraLabels}</span> : null}
 
-				<div className="ml-auto flex shrink-0 items-center gap-1">
-					<div className="flex items-center gap-1 text-muted opacity-0 transition-opacity focus-within:opacity-100 group-hover/card:opacity-100">
-						<a
-							href={issue.url}
-							target="_blank"
-							rel="noreferrer"
-							onClick={(e) => e.stopPropagation()}
-							aria-label={`Open issue ${issue.identifier}`}
-							title={`Open issue ${issue.identifier}`}
-							className="hover:text-strong"
-						>
-							<ArrowSquareOut className="size-3.5" />
-						</a>
-						{issue.project ? (
-							<a
-								href={issue.project.url}
-								target="_blank"
-								rel="noreferrer"
-								aria-label={`Open project: ${issue.project.name}`}
-								title={`Open project: ${issue.project.name}`}
-								className="hover:text-strong"
-								onClick={(e) => e.stopPropagation()}
-							>
-								<FolderOpen className="size-3.5" />
-							</a>
-						) : null}
-					</div>
-
-					{issue.assignee ? <PersonAvatar person={issue.assignee} /> : null}
-				</div>
+				{/* No links to Linear here: a click anywhere on the card opens the side
+				    panel, which links to the issue and its project. */}
+				{issue.assignee ? (
+					<span className="ml-auto shrink-0">
+						<PersonAvatar person={issue.assignee} />
+					</span>
+				) : null}
 			</div>
 		</div>
 	);

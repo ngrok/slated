@@ -1,17 +1,22 @@
 import { useDroppable } from "@dnd-kit/core";
 import { cx } from "@ngrok/mantle/cx";
+import { Popover } from "@ngrok/mantle/popover";
 import { Plus } from "@phosphor-icons/react";
 import { format } from "date-fns";
-import { forwardRef, memo, useState } from "react";
+import { forwardRef, memo, useContext, useEffect, useRef, useState } from "react";
 import { toISODate } from "./date-utils";
 import { DraggableIssueCard } from "./draggable-issue-card";
 import { DraggableProjectCard } from "./draggable-project-card";
+import { SelectedIssueContext } from "./selected-issue";
 import type { CalendarIssue, CalendarProject } from "./types";
 
-// Cap visible cards per day so a busy day doesn't blow up the row height.
-// Projects and issues share the budget, so the cap holds however the day is
-// made up.
-const MAX_VISIBLE = 4;
+// Every day is the same height, sized for this many cards, so a week reads as a
+// grid rather than a skyline and a busy day doesn't stretch its whole row. A day
+// with more shows one fewer card and a "+N more" line, which takes less room
+// than a card, and the full list opens in a popover. Projects and issues share
+// the slots. The height is the header plus SLOTS cards: change them together.
+const SLOTS = 3;
+const DAY_HEIGHT = "h-[13.25rem]";
 
 export const DayCell = memo(
 	forwardRef<
@@ -31,7 +36,7 @@ export const DayCell = memo(
 	) {
 		// Each day is a drop target keyed by its ISO date (the new dueDate).
 		const { setNodeRef, isOver } = useDroppable({ id: toISODate(date) });
-		const [expanded, setExpanded] = useState(false);
+		const [moreOpen, setMoreOpen] = useState(false);
 		function setRefs(node: HTMLDivElement | null) {
 			setNodeRef(node);
 			if (typeof ref === "function") {
@@ -41,19 +46,54 @@ export const DayCell = memo(
 			}
 		}
 
-		const hidden = projects.length + issues.length - MAX_VISIBLE;
+		const total = projects.length + issues.length;
+		const shown = total <= SLOTS ? total : SLOTS - 1;
+		const hidden = total - shown;
 		// Projects come first: the bigger unit reads as the day's headline, and it
 		// keeps its place when the cap trims the issues under it.
-		const visibleProjects = expanded ? projects : projects.slice(0, MAX_VISIBLE);
-		const visibleIssues = expanded
-			? issues
-			: issues.slice(0, Math.max(0, MAX_VISIBLE - projects.length));
+		const visibleProjects = projects.slice(0, shown);
+		const visibleIssues = issues.slice(0, Math.max(0, shown - projects.length));
+
+		// When the issue open in the panel is one hidden in this day's overflow,
+		// as J and K can make it, the popover opens so the selection stays on
+		// screen, and closes again once the selection moves on. It doesn't take
+		// focus either way, so the keys keep stepping (see IssuePanel).
+		const selectedId = useContext(SelectedIssueContext);
+		const selectedHidden =
+			selectedId !== null &&
+			issues.some((issue) => issue.id === selectedId) &&
+			!visibleIssues.some((issue) => issue.id === selectedId);
+		const openedForSelection = useRef(false);
+		const popoverRef = useRef<HTMLDivElement>(null);
+		useEffect(() => {
+			if (selectedHidden) {
+				openedForSelection.current = true;
+				setMoreOpen(true);
+			} else if (openedForSelection.current) {
+				setMoreOpen(false);
+			}
+		}, [selectedHidden]);
+		useEffect(() => {
+			if (moreOpen && selectedId) {
+				popoverRef.current
+					?.querySelector(`[data-issue-id="${selectedId}"]`)
+					?.scrollIntoView({ block: "nearest" });
+			}
+		}, [moreOpen, selectedId]);
+		function changeMoreOpen(open: boolean) {
+			if (open) {
+				openedForSelection.current = false;
+			}
+			setMoreOpen(open);
+		}
 
 		return (
 			<div
 				ref={setRefs}
+				data-date={toISODate(date)}
 				className={cx(
-					"group flex min-h-28 flex-col gap-1.5 border-b border-l border-card-muted p-1.5 transition-colors",
+					"group flex flex-col gap-1.5 overflow-hidden border-b border-l border-card-muted p-1.5 transition-colors",
+					DAY_HEIGHT,
 					!isCurrentMonth && "bg-card-hover/40",
 					isToday && "bg-filled-accent/5",
 					isOver && "bg-filled-accent/10 ring-1 ring-inset ring-accent-500",
@@ -73,7 +113,7 @@ export const DayCell = memo(
 					<span
 						className={cx(
 							"flex size-5 items-center justify-center rounded-full text-sm",
-							isToday && "bg-filled-accent font-medium text-on-filled",
+							isToday && "bg-filled-accent font-medium text-white",
 							!isToday && !isCurrentMonth && "text-muted",
 							!isToday && isCurrentMonth && "text-strong",
 						)}
@@ -89,14 +129,44 @@ export const DayCell = memo(
 					{visibleIssues.map((issue) => (
 						<DraggableIssueCard key={issue.id} issue={issue} onOpen={onOpenIssue} />
 					))}
-					{!expanded && hidden > 0 ? (
-						<button
-							type="button"
-							className="rounded px-1 py-0.5 text-left text-xs text-muted hover:text-strong"
-							onClick={() => setExpanded(true)}
-						>
-							+{hidden} more
-						</button>
+					{hidden > 0 ? (
+						<Popover.Root open={moreOpen} onOpenChange={changeMoreOpen}>
+							<Popover.Trigger asChild>
+								<button
+									type="button"
+									className="rounded px-1 py-0.5 text-left text-xs text-muted hover:bg-card-hover hover:text-strong"
+								>
+									+{hidden} more
+								</button>
+							</Popover.Trigger>
+							<Popover.Content
+								ref={popoverRef}
+								align="start"
+								data-day-popover=""
+								aria-label={format(date, "EEEE, MMMM d")}
+								onOpenAutoFocus={(event) => {
+									if (openedForSelection.current) {
+										event.preventDefault();
+									}
+								}}
+								onCloseAutoFocus={(event) => {
+									if (openedForSelection.current) {
+										event.preventDefault();
+									}
+								}}
+								className="z-50 flex max-h-96 w-64 flex-col gap-1.5 overflow-y-auto rounded-md border border-card bg-base p-2 text-strong shadow-lg"
+							>
+								<p className="px-1 pb-0.5 text-xs font-medium text-muted">
+									{format(date, "EEEE, MMM d")}
+								</p>
+								{projects.map((project) => (
+									<DraggableProjectCard key={project.id} project={project} />
+								))}
+								{issues.map((issue) => (
+									<DraggableIssueCard key={issue.id} issue={issue} onOpen={onOpenIssue} />
+								))}
+							</Popover.Content>
+						</Popover.Root>
 					) : null}
 				</div>
 			</div>

@@ -1,6 +1,4 @@
-import { Button } from "@ngrok/mantle/button";
-import { Checkbox } from "@ngrok/mantle/checkbox";
-import { Popover } from "@ngrok/mantle/popover";
+import { DropdownMenu } from "@ngrok/mantle/dropdown-menu";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readStored } from "~/lib/storage";
 import type { LabelOption, TeamOption } from "./types";
@@ -93,7 +91,11 @@ export function useCalendarFilters(teams: TeamOption[], defaultTeamIds: string[]
 	return { teamIds, labelIds, toggleTeam, toggleLabelGroup, clearLabels, setLabelIds };
 }
 
-export function FilterBar({
+/**
+ * The team and label filters, as two submenus for the Options menu. Toggling
+ * holds the menu open so several teams or labels can be picked at once.
+ */
+export function FilterMenus({
 	teams,
 	teamsLoading,
 	teamIds,
@@ -116,99 +118,84 @@ export function FilterBar({
 		option.ids.some((id) => labelIds.includes(id)),
 	).length;
 	const selectedTeamCount = teams.filter((team) => teamIds.includes(team.id)).length;
+	const keepOpen = (event: Event) => event.preventDefault();
 
 	return (
-		<div className="flex flex-wrap items-center gap-2">
-			<Popover.Root>
-				<Popover.Trigger asChild>
-					<Button type="button" appearance="outlined">
-						Teams{selectedTeamCount > 0 ? ` (${selectedTeamCount})` : ""}
-					</Button>
-				</Popover.Trigger>
-				<Popover.Content className="z-50 flex max-h-80 w-72 flex-col gap-1 overflow-auto rounded-md border border-card bg-card p-2 text-strong shadow-lg">
-					<div className="flex items-center justify-between px-1 pb-1">
-						<span className="text-xs font-medium text-muted">Filter by team</span>
-					</div>
-
-					{teamsLoading ? <p className="px-1 text-xs text-muted">Loading teams…</p> : null}
+		<>
+			<DropdownMenu.Sub>
+				<DropdownMenu.SubTrigger>
+					Teams
+					<span className="ml-auto pl-2 text-xs text-muted">
+						{selectedTeamCount > 0 ? selectedTeamCount : null}
+					</span>
+				</DropdownMenu.SubTrigger>
+				<DropdownMenu.SubContent className="max-h-80 w-64 overflow-y-auto">
+					{teamsLoading ? <DropdownMenu.Label>Loading teams…</DropdownMenu.Label> : null}
 					{!teamsLoading && teams.length === 0 ? (
-						<p className="px-1 text-xs text-muted">No teams found.</p>
+						<DropdownMenu.Label>No teams found.</DropdownMenu.Label>
 					) : null}
-					{teams.map((team) => {
-						const checkboxId = `team-filter-${team.id}`;
-						return (
-							<label
-								key={team.id}
-								htmlFor={checkboxId}
-								className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-card"
-							>
-								<Checkbox
-									id={checkboxId}
-									checked={teamIds.includes(team.id)}
-									onChange={() => onToggleTeam(team.id)}
-								/>
-								<span className="truncate text-sm text-strong">{team.name}</span>
-								<span className="shrink-0 text-xs text-muted">{team.key}</span>
-							</label>
-						);
-					})}
-				</Popover.Content>
-			</Popover.Root>
+					{teams.map((team) => (
+						<DropdownMenu.CheckboxItem
+							key={team.id}
+							checked={teamIds.includes(team.id)}
+							onSelect={keepOpen}
+							onCheckedChange={() => onToggleTeam(team.id)}
+						>
+							<span className="truncate">{team.name}</span>
+							<span className="ml-auto pl-2 text-xs text-muted">{team.key}</span>
+						</DropdownMenu.CheckboxItem>
+					))}
+				</DropdownMenu.SubContent>
+			</DropdownMenu.Sub>
 
-			<Popover.Root>
-				<Popover.Trigger asChild>
-					<Button type="button" appearance="outlined">
-						Labels{selectedCount > 0 ? ` (${selectedCount})` : ""}
-					</Button>
-				</Popover.Trigger>
-				<Popover.Content className="z-50 flex max-h-80 w-64 flex-col gap-1 overflow-auto rounded-md border border-card bg-card p-2 text-strong shadow-lg">
-					<div className="flex items-center justify-between px-1 pb-1">
-						<span className="text-xs font-medium text-muted">Filter by label</span>
-						{selectedCount > 0 ? (
-							<button
-								type="button"
-								className="text-xs text-muted underline hover:text-strong"
-								onClick={onClearLabels}
-							>
-								Clear
-							</button>
-						) : null}
-					</div>
-
+			<DropdownMenu.Sub>
+				<DropdownMenu.SubTrigger>
+					Labels
+					<span className="ml-auto pl-2 text-xs text-muted">
+						{selectedCount > 0 ? selectedCount : null}
+					</span>
+				</DropdownMenu.SubTrigger>
+				<DropdownMenu.SubContent className="max-h-80 w-64 overflow-y-auto">
 					{/* Labels are scoped to the selected teams, so an empty list before any
 					    team is picked means "not yet", not "none exist". */}
 					{teamIds.length === 0 ? (
-						<p className="px-1 text-xs text-muted">Select a team first.</p>
+						<DropdownMenu.Label>Select a team first.</DropdownMenu.Label>
 					) : labels.length === 0 ? (
-						<p className="px-1 text-xs text-muted">No labels found for the selected teams.</p>
+						<DropdownMenu.Label>No labels for the selected teams.</DropdownMenu.Label>
 					) : (
-						labels.map((option) => {
-							const checkboxId = `label-filter-${option.ids.join("-")}`;
-							return (
-								<label
-									key={option.name}
-									htmlFor={checkboxId}
-									className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-card"
-								>
-									<Checkbox
-										id={checkboxId}
-										checked={option.ids.some((id) => labelIds.includes(id))}
-										onChange={() => onToggleLabelGroup(option.ids)}
-									/>
-									<span
-										className="size-2 shrink-0 rounded-full"
-										style={{ backgroundColor: option.color }}
-									/>
-									<span className="truncate text-sm text-strong">{option.name}</span>
-									{option.matchesNamespace ? (
-										<span className="shrink-0 text-xs text-muted">default</span>
-									) : null}
-								</label>
-							);
-						})
+						labels.map((option) => (
+							<DropdownMenu.CheckboxItem
+								key={option.name}
+								checked={option.ids.some((id) => labelIds.includes(id))}
+								onSelect={keepOpen}
+								onCheckedChange={() => onToggleLabelGroup(option.ids)}
+							>
+								<span
+									className="size-2 shrink-0 rounded-full"
+									style={{ backgroundColor: option.color }}
+								/>
+								<span className="truncate">{option.name}</span>
+								{option.matchesNamespace ? (
+									<span className="ml-auto pl-2 text-xs text-muted">default</span>
+								) : null}
+							</DropdownMenu.CheckboxItem>
+						))
 					)}
-				</Popover.Content>
-			</Popover.Root>
-		</div>
+					{selectedCount > 0 ? (
+						<>
+							<DropdownMenu.Separator />
+							<DropdownMenu.Item
+								onSelect={(event) => {
+									event.preventDefault();
+									onClearLabels();
+								}}
+							>
+								Clear labels
+							</DropdownMenu.Item>
+						</>
+					) : null}
+				</DropdownMenu.SubContent>
+			</DropdownMenu.Sub>
+		</>
 	);
 }

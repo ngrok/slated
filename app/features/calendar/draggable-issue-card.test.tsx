@@ -1,5 +1,5 @@
 import { DndContext } from "@dnd-kit/core";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { describe, expect, test, vi } from "vitest";
 import { DraggableIssueCard } from "./draggable-issue-card";
@@ -33,14 +33,23 @@ describe("DraggableIssueCard", () => {
 		expect(onOpen).toHaveBeenCalledTimes(1);
 	});
 
-	test("tapping the issue link does not open the modal", async () => {
+	test("a press that wobbles a few pixels still opens the issue; a drag does not", () => {
 		const onOpen = vi.fn();
 		render(
 			<DndContext>
 				<DraggableIssueCard issue={issue} onOpen={onOpen} />
 			</DndContext>,
 		);
-		await userEvent.click(screen.getByRole("link", { name: /open issue/i }));
-		expect(onOpen).not.toHaveBeenCalled();
+		const card = screen.getByText("ClickToOpen");
+
+		// 6px: a trackpad click, not a drag.
+		fireEvent.pointerDown(card, { clientX: 100, clientY: 100 });
+		fireEvent.pointerUp(card, { clientX: 106, clientY: 100 });
+		expect(onOpen).toHaveBeenCalledTimes(1);
+
+		// 30px: a drag, which reschedules instead of opening.
+		fireEvent.pointerDown(card, { clientX: 100, clientY: 100 });
+		fireEvent.pointerUp(card, { clientX: 130, clientY: 100 });
+		expect(onOpen).toHaveBeenCalledTimes(1);
 	});
 });

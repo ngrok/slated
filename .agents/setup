@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Prepares an Amp orb: the Node version CI and the Dockerfile pin, pnpm through
+# corepack (pinned by package.json's "packageManager"), and dependencies.
+set -euo pipefail
+
+# Keep in step with .github/workflows/ci.yml and the Dockerfile.
+NODE_VERSION=22.23.4
+
+step() {
+	echo "==> $1"
+	SECONDS=0
+}
+done_step() { echo "    done in ${SECONDS}s"; }
+
+case "$(uname -m)" in
+x86_64) node_arch=x64 ;;
+aarch64 | arm64) node_arch=arm64 ;;
+*)
+	echo "unsupported architecture: $(uname -m)" >&2
+	exit 1
+	;;
+esac
+node_name="node-v${NODE_VERSION}-linux-${node_arch}"
+node_dir="$HOME/.local/share/node/$node_name"
+# ~/.local/bin comes before /usr/local/bin on the orb's PATH, so links here
+# replace the image's Node for Amp, the terminal, and supervised services.
+bin_dir="$HOME/.local/bin"
+
+step "Node ${NODE_VERSION}"
+if [ ! -x "$node_dir/bin/node" ]; then
+	tmp="$(mktemp -d)"
+	trap 'rm -rf "$tmp"' EXIT
+	base="https://nodejs.org/dist/v${NODE_VERSION}"
+	curl -fsSL "$base/${node_name}.tar.xz" -o "$tmp/${node_name}.tar.xz"
+	curl -fsSL "$base/SHASUMS256.txt" -o "$tmp/SHASUMS256.txt"
+	(cd "$tmp" && grep " ${node_name}.tar.xz\$" SHASUMS256.txt | sha256sum -c -)
+	mkdir -p "$(dirname "$node_dir")"
+	tar -xJf "$tmp/${node_name}.tar.xz" -C "$(dirname "$node_dir")"
+fi
+mkdir -p "$bin_dir"
+for tool in node npm npx corepack; do
+	ln -sfn "$node_dir/bin/$tool" "$bin_dir/$tool"
+done
+export PATH="$bin_dir:$PATH"
+node --version
+done_step
+
+step "pnpm via corepack"
+export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+corepack enable --install-directory "$bin_dir" pnpm
+pnpm --version
+done_step
+
+step "pnpm install"
+pnpm install --frozen-lockfile
+done_step

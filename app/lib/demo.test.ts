@@ -56,6 +56,16 @@ describe("demo issues", () => {
 		}
 	});
 
+	test("piles more cards onto some days than a day tile shows", () => {
+		// The day tile fits three; the demo needs days past that to show "+N more".
+		const perDay = new Map<string, number>();
+		for (const issue of issues({ start: "2026-09-01", end: "2026-09-30" })) {
+			perDay.set(issue.dueDate, (perDay.get(issue.dueDate) ?? 0) + 1);
+		}
+		const busy = [...perDay.values()].filter((count) => count >= 5);
+		expect(busy.length).toBeGreaterThanOrEqual(2);
+	});
+
 	test("filters by team", () => {
 		const contentOnly = issues({ teamIds: ["team-con"] });
 		expect(contentOnly.length).toBeGreaterThan(0);

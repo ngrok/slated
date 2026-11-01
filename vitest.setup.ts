@@ -16,3 +16,17 @@ if (typeof window !== "undefined" && !window.matchMedia) {
 			dispatchEvent: () => false,
 		}) as MediaQueryList;
 }
+
+// jsdom has no ResizeObserver or scrollIntoView. cmdk, behind every picker,
+// measures its list with the first and scrolls the active option with the
+// second; neither matters to what the tests assert.
+if (typeof window !== "undefined" && !window.ResizeObserver) {
+	window.ResizeObserver = class {
+		observe() {}
+		unobserve() {}
+		disconnect() {}
+	};
+}
+if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
+	Element.prototype.scrollIntoView = () => {};
+}

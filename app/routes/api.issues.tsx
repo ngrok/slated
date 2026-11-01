@@ -3,6 +3,8 @@ import { env } from "~/lib/env.server";
 import { linearAuthorization } from "~/lib/linear.server";
 import {
 	fetchCalendarIssues,
+	MAX_PRIORITY,
+	updateIssue,
 	updateIssueDueDate,
 	updateIssueLabels,
 	updateIssueState,
@@ -44,13 +46,18 @@ export async function loader({ request }: Route.LoaderArgs) {
 	return Response.json({ issues });
 }
 
-// Update an issue: POST { issueId, dueDate? , labelIds? } -> Linear issueUpdate.
+// Update an issue: POST { issueId, dueDate?, labelIds?, stateId?, assigneeId?,
+// priority?, projectId?, description? } -> Linear issueUpdate.
 export async function action({ request }: Route.ActionArgs) {
 	const body = (await request.json()) as {
 		issueId?: string;
 		dueDate?: string | null;
 		labelIds?: string[];
 		stateId?: string;
+		assigneeId?: string | null;
+		priority?: number;
+		projectId?: string | null;
+		description?: string;
 	};
 	if (!body.issueId) {
 		throw new Response("Missing 'issueId'", { status: 400 });
@@ -60,8 +67,33 @@ export async function action({ request }: Route.ActionArgs) {
 	const hasDueDate = "dueDate" in body;
 	const hasLabels = Array.isArray(body.labelIds);
 	const hasState = typeof body.stateId === "string";
-	if (!hasDueDate && !hasLabels && !hasState) {
-		throw new Response("Provide 'dueDate', 'labelIds', and/or 'stateId'", { status: 400 });
+	// assigneeId present (string to assign, null to unassign) vs. absent.
+	const hasAssignee = "assigneeId" in body;
+	const hasPriority = "priority" in body;
+	// projectId present (string to move, null to remove) vs. absent.
+	const hasProject = "projectId" in body;
+	const hasDescription = typeof body.description === "string";
+	if (
+		!hasDueDate &&
+		!hasLabels &&
+		!hasState &&
+		!hasAssignee &&
+		!hasPriority &&
+		!hasProject &&
+		!hasDescription
+	) {
+		throw new Response(
+			"Provide 'dueDate', 'labelIds', 'stateId', 'assigneeId', 'priority', 'projectId', and/or 'description'",
+			{ status: 400 },
+		);
+	}
+	if (
+		hasPriority &&
+		(!Number.isInteger(body.priority) ||
+			(body.priority as number) < 0 ||
+			(body.priority as number) > MAX_PRIORITY)
+	) {
+		throw new Response("Invalid 'priority'", { status: 400 });
 	}
 
 	if (env.DEMO) {
@@ -70,6 +102,10 @@ export async function action({ request }: Route.ActionArgs) {
 			...(hasDueDate ? { dueDate: body.dueDate ?? null } : {}),
 			...(hasLabels ? { labelIds: body.labelIds } : {}),
 			...(hasState ? { stateId: body.stateId } : {}),
+			...(hasAssignee ? { assigneeId: body.assigneeId ?? null } : {}),
+			...(hasPriority ? { priority: body.priority } : {}),
+			...(hasProject ? { projectId: body.projectId ?? null } : {}),
+			...(hasDescription ? { description: body.description } : {}),
 		});
 		return Response.json({ ok: true });
 	}
@@ -93,6 +129,18 @@ export async function action({ request }: Route.ActionArgs) {
 			authorization: linearAuthorization,
 			issueId: body.issueId,
 			stateId: body.stateId as string,
+		});
+	}
+	if (hasAssignee || hasPriority || hasProject || hasDescription) {
+		await updateIssue({
+			authorization: linearAuthorization,
+			issueId: body.issueId,
+			input: {
+				...(hasAssignee ? { assigneeId: body.assigneeId ?? null } : {}),
+				...(hasPriority ? { priority: body.priority } : {}),
+				...(hasProject ? { projectId: body.projectId ?? null } : {}),
+				...(hasDescription ? { description: body.description } : {}),
+			},
 		});
 	}
 

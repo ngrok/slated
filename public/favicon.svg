@@ -6,8 +6,8 @@
     </clipPath>
   </defs>
   <g clip-path="url(#tile)">
-    <rect x="4" y="3" width="24" height="26" fill="#0078C4"/>
-    <rect x="4" y="3" width="24" height="5" fill="#024A70"/>
+    <rect x="4" y="3" width="24" height="26" fill="#45556C"/>
+    <rect x="4" y="3" width="24" height="5" fill="#1D293D"/>
   </g>
   <g fill="#FFFFFF">
     <rect x="8" y="11.5" width="6.5" height="5.5" rx="1.5" opacity=".5"/>

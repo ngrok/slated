@@ -8,4 +8,6 @@ export default [
 	route("api/labels", "routes/api.labels.tsx"),
 	route("api/teams", "routes/api.teams.tsx"),
 	route("api/states", "routes/api.states.tsx"),
+	route("api/members", "routes/api.members.tsx"),
+	route("api/team-projects", "routes/api.team-projects.tsx"),
 ] satisfies RouteConfig;

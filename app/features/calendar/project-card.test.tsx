@@ -1,5 +1,6 @@
 import { DndContext } from "@dnd-kit/core";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
 import { describe, expect, test, vi } from "vitest";
 import { DayCell } from "./day-cell";
 import { ProjectCard } from "./project-card";
@@ -110,7 +111,7 @@ describe("DayCell with projects", () => {
 		expect(cards.map((card) => card.textContent)).toEqual(["Q3 Content push", "Launch blog post"]);
 	});
 
-	test("projects and issues share the per-day cap", () => {
+	test("projects and issues share the per-day cap", async () => {
 		const issues = Array.from({ length: 6 }, (_, i) => ({
 			...issue,
 			id: `i${i}`,
@@ -118,10 +119,23 @@ describe("DayCell with projects", () => {
 		}));
 		renderDay([project], issues);
 
-		// One project plus three issues fills the cap of four; the rest collapse.
+		// Seven items don't fit three slots: the project and one issue show, and the
+		// other five collapse into "+5 more", which lists the whole day.
 		expect(screen.getByText("Q3 Content push")).toBeInTheDocument();
-		expect(screen.getByText("Issue 2")).toBeInTheDocument();
-		expect(screen.queryByText("Issue 3")).not.toBeInTheDocument();
-		expect(screen.getByRole("button", { name: "+3 more" })).toBeInTheDocument();
+		expect(screen.getByText("Issue 0")).toBeInTheDocument();
+		expect(screen.queryByText("Issue 1")).not.toBeInTheDocument();
+
+		await userEvent.click(screen.getByRole("button", { name: "+5 more" }));
+		const day = screen.getByRole("dialog", { name: "Tuesday, June 23" });
+		expect(within(day).getByText("Issue 5")).toBeInTheDocument();
+		expect(within(day).getByText("Q3 Content push")).toBeInTheDocument();
+	});
+
+	test("a day that fits shows every card and no more button", () => {
+		const issues = [0, 1].map((i) => ({ ...issue, id: `i${i}`, title: `Issue ${i}` }));
+		renderDay([project], issues);
+
+		expect(screen.getByText("Issue 1")).toBeInTheDocument();
+		expect(screen.queryByRole("button", { name: /more/ })).not.toBeInTheDocument();
 	});
 });

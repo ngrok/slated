@@ -16,3 +16,75 @@
  * Pointing @source here, relative to this file, fixes that.
  */
 @source "../node_modules/@ngrok/mantle/dist";
+
+/*
+ * Slate in place of mantle's blue. Every accent in mantle (filled and outlined
+ * buttons, checkboxes, focus rings, selected menu items) reads
+ * --color-accent-*, so pointing that scale at slate recolors the app. It is
+ * shifted two steps darker than slate's own scale so the filled button, at
+ * accent-600, is near-black ink rather than mid-gray.
+ *
+ * Mantle's dark theme reverses every scale, slate included, so the same
+ * mapping turns the filled button into chalk on a dark surface. The high
+ * contrast themes follow it too.
+ */
+@theme {
+	--color-accent-50: var(--color-slate-50);
+	--color-accent-100: var(--color-slate-100);
+	--color-accent-200: var(--color-slate-200);
+	--color-accent-300: var(--color-slate-300);
+	--color-accent-400: var(--color-slate-500);
+	--color-accent-500: var(--color-slate-600);
+	--color-accent-600: var(--color-slate-800);
+	--color-accent-700: var(--color-slate-900);
+	--color-accent-800: var(--color-slate-900);
+	--color-accent-900: var(--color-slate-950);
+	--color-accent-950: var(--color-slate-950);
+}
+
+/*
+ * Mantle's neutrals are pure gray; tint them toward slate's hue so surfaces,
+ * borders, and text sit in the same family as the accent. The lightness of
+ * each step is mantle's own. Chroma stays lowest on the lightest steps, where
+ * even a little reads as blue. The high-contrast themes keep pure grays.
+ */
+:root,
+:root.light,
+:root[data-theme="light"],
+:root[data-applied-theme="light"] {
+	--color-neutral-50: oklch(98.5% 0.004 257);
+	--color-neutral-100: oklch(97% 0.004 257);
+	--color-neutral-200: oklch(92.2% 0.004 257);
+	--color-neutral-300: oklch(87% 0.008 257);
+	--color-neutral-400: oklch(70.8% 0.012 257);
+	--color-neutral-500: oklch(55.6% 0.012 257);
+	--color-neutral-600: oklch(43.9% 0.012 257);
+	--color-neutral-700: oklch(37.1% 0.012 257);
+	--color-neutral-800: oklch(26.9% 0.012 257);
+	--color-neutral-900: oklch(20.5% 0.012 257);
+	--color-neutral-950: oklch(18.2% 0.012 257);
+}
+
+:root.dark,
+:root[data-theme="dark"],
+:root[data-applied-theme="dark"] {
+	--color-neutral-50: oklch(18.2% 0.012 257);
+	--color-neutral-100: oklch(20.5% 0.012 257);
+	--color-neutral-200: oklch(26.9% 0.012 257);
+	--color-neutral-300: oklch(37.1% 0.012 257);
+	--color-neutral-400: oklch(43.9% 0.012 257);
+	--color-neutral-500: oklch(55.6% 0.012 257);
+	--color-neutral-600: oklch(70.8% 0.012 257);
+	--color-neutral-700: oklch(87% 0.008 257);
+	--color-neutral-800: oklch(92.2% 0.004 257);
+	--color-neutral-900: oklch(97% 0.004 257);
+	--color-neutral-950: oklch(98.5% 0.004 257);
+}
+
+/*
+ * Roobert's contextual alternates turn "(4)" into a circled digit, which
+ * mangles counts like "Teams (4)".
+ */
+body {
+	font-feature-settings: "calt" 0;
+}

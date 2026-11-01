@@ -3,6 +3,7 @@ import type {
 	CalendarIssue,
 	CalendarProject,
 	LabelOption,
+	TeamMember,
 	TeamOption,
 	WorkflowState,
 } from "~/features/calendar/types";
@@ -40,6 +41,11 @@ const ISSUES_PER_MONTH = 22;
 // screen disjoint.
 const TEMPLATE_STRIDE = 7;
 const PROJECTS_PER_MONTH = 2;
+// Every month has a couple of pile-up days, the way a launch puts a post, a
+// newsletter, and a video on the same date. Their sizes overflow a day tile
+// (see SLOTS in day-cell), so the demo shows the "+N more" popover. The first
+// slots of each month go to these days in order; the rest scatter.
+const BUSY_DAY_SIZES = [6, 5];
 
 const TEAMS: TeamOption[] = [
 	{ id: "team-con", key: "CON", name: "Content" },
@@ -69,7 +75,7 @@ const STATES: WorkflowState[] = [
 	{ id: "state-canceled", name: "Canceled", color: "#95a2b3", type: "cancelled", position: 5 },
 ];
 
-const PEOPLE = [
+const PEOPLE: TeamMember[] = [
 	{ id: "user-ada", name: "Ada Lovelace", displayName: "Ada Lovelace", avatarUrl: null },
 	{ id: "user-grace", name: "Grace Hopper", displayName: "Grace Hopper", avatarUrl: null },
 	{ id: "user-alan", name: "Alan Turing", displayName: "Alan Turing", avatarUrl: null },
@@ -485,14 +491,38 @@ function projectSummary(name: string): CalendarIssue["project"] {
 }
 
 /**
+ * The weekdays a month's busy days fall on, one per BUSY_DAY_SIZES entry, all
+ * different. Seeded by the month, so every window agrees on them.
+ */
+function busyDaysOf(monthIndex: number, weekdays: Date[]): Date[] {
+	const random = seeded(hash(`busy:${monthIndex}`));
+	const remaining = [...weekdays];
+	return BUSY_DAY_SIZES.flatMap(() => remaining.splice(Math.floor(random() * remaining.length), 1));
+}
+
+/** The busy day a slot belongs to, or undefined when the slot scatters. */
+function busyDayForSlot(slot: number, busyDays: Date[]): Date | undefined {
+	let end = 0;
+	for (const [index, size] of BUSY_DAY_SIZES.entries()) {
+		end += size;
+		if (slot < end) {
+			return busyDays[index];
+		}
+	}
+	return undefined;
+}
+
+/**
  * Every issue for one month. The month picks a rolling slice of the templates,
- * so neighbouring months hold different work, and each template lands on a
- * weekday chosen by its own seed. Several templates can share a day; that is
- * what gives some days three cards and others none.
+ * so neighbouring months hold different work. The first few land on the
+ * month's busy days and the rest on a weekday chosen by their own seed, where
+ * they can still collide; that is what gives some days several cards and
+ * others none.
  */
 function issuesForMonth(month: Date): CalendarIssue[] {
 	const monthIndex = monthIndexOf(month);
 	const weekdays = weekdaysOfMonth(month);
+	const busyDays = busyDaysOf(monthIndex, weekdays);
 	const today = new Date();
 	const issues: CalendarIssue[] = [];
 
@@ -504,7 +534,9 @@ function issuesForMonth(month: Date): CalendarIssue[] {
 			continue;
 		}
 		const random = seeded(hash(`issue:${monthIndex}:${templateIndex}`));
-		const day = pick(weekdays, random());
+		// Roll for a day either way, so every later roll stays where it was.
+		const scattered = pick(weekdays, random());
+		const day = busyDayForSlot(slot, busyDays) ?? scattered;
 		const team = teamByKey(template.team);
 		const state = statusForDay(daysFromToday(day, today), random());
 		const assigneeRoll = random();
@@ -623,6 +655,12 @@ type IssueEdit = {
 	dueDate?: string | null;
 	stateId?: string;
 	labelIds?: string[];
+	/** null unassigns. */
+	assigneeId?: string | null;
+	priority?: number;
+	/** null removes the issue from its project. */
+	projectId?: string | null;
+	description?: string;
 };
 
 const issueEdits = new Map<string, IssueEdit>();
@@ -642,6 +680,22 @@ function applyIssueEdit(issue: CalendarIssue): CalendarIssue | null {
 		...issue,
 		...(edit.dueDate ? { dueDate: edit.dueDate } : {}),
 		...(state ? { state: asIssueState(state) } : {}),
+		...(edit.assigneeId !== undefined
+			? { assignee: PEOPLE.find((person) => person.id === edit.assigneeId) ?? null }
+			: {}),
+		...(edit.priority !== undefined
+			? {
+					priority: edit.priority,
+					priorityLabel: PRIORITY_LABELS[edit.priority] ?? "No priority",
+				}
+			: {}),
+		...(edit.projectId !== undefined
+			? {
+					project: edit.projectId
+						? projectSummary(edit.projectId.replace(/^demo-project-/, ""))
+						: null,
+				}
+			: {}),
 		...(edit.labelIds
 			? {
 					labels: edit.labelIds.flatMap((id) => {
@@ -715,6 +769,17 @@ export function demoLabels(): { labels: LabelOption[]; requiresLabelMatch: boole
 
 export function demoStates(): WorkflowState[] {
 	return STATES;
+}
+
+export function demoMembers(): TeamMember[] {
+	return PEOPLE;
+}
+
+export function demoTeamProjects(teamId: string): NonNullable<CalendarIssue["project"]>[] {
+	const key = TEAMS.find((team) => team.id === teamId)?.key;
+	return PROJECT_TEMPLATES.filter((template) => key && template.teams.includes(key)).flatMap(
+		(template) => projectSummary(template.name) ?? [],
+	);
 }
 
 export function demoIssues(params: {
@@ -793,6 +858,10 @@ export function demoIssueDetail(id: string): { description: string | null } {
 	if (!issue) {
 		return { description: null };
 	}
+	const edited = issueEdits.get(id)?.description;
+	if (edited !== undefined) {
+		return { description: edited || null };
+	}
 	return { description: pick(DESCRIPTIONS, seeded(hash(`description:${id}`))()) };
 }
 
@@ -801,6 +870,10 @@ export function demoUpdateIssue(input: {
 	dueDate?: string | null;
 	stateId?: string;
 	labelIds?: string[];
+	assigneeId?: string | null;
+	priority?: number;
+	projectId?: string | null;
+	description?: string;
 }): void {
 	const existing = issueEdits.get(input.issueId) ?? {};
 	issueEdits.set(input.issueId, {
@@ -808,6 +881,10 @@ export function demoUpdateIssue(input: {
 		...("dueDate" in input ? { dueDate: input.dueDate } : {}),
 		...(input.stateId ? { stateId: input.stateId } : {}),
 		...(input.labelIds ? { labelIds: input.labelIds } : {}),
+		...("assigneeId" in input ? { assigneeId: input.assigneeId } : {}),
+		...(input.priority !== undefined ? { priority: input.priority } : {}),
+		...("projectId" in input ? { projectId: input.projectId } : {}),
+		...(input.description !== undefined ? { description: input.description } : {}),
 	});
 }
 
@@ -822,6 +899,7 @@ export function demoCreateIssue(input: {
 	labelIds?: string[];
 	stateId?: string;
 	priority?: number;
+	assigneeId?: string;
 }): CalendarIssue {
 	const team = TEAMS.find((candidate) => candidate.id === input.teamId) ?? TEAMS[0];
 	if (!team) {
@@ -840,7 +918,7 @@ export function demoCreateIssue(input: {
 		priority,
 		priorityLabel: PRIORITY_LABELS[priority] ?? "No priority",
 		state: asIssueState(state),
-		assignee: PEOPLE[0] ?? null,
+		assignee: PEOPLE.find((person) => person.id === input.assigneeId) ?? null,
 		labels: (input.labelIds ?? []).flatMap((id) => {
 			const label = LABELS.find((candidate) => id.startsWith(`label-${candidate.name}-`));
 			return label ? [{ id, name: label.name, color: label.color }] : [];

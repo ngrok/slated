@@ -1,7 +1,8 @@
-import { Button } from "@ngrok/mantle/button";
+import { IconButton } from "@ngrok/mantle/button";
 import { DropdownMenu } from "@ngrok/mantle/dropdown-menu";
 import { ArrowsClockwise, SlidersHorizontal } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { ThemeMenuRadioGroup } from "~/components/theme-menu";
 import { invalidateCalendarGrid, useCalendarFetchCount } from "./queries";
 import type { ViewOptions } from "./view-options";
@@ -14,14 +15,15 @@ const OPTION_LABELS: { key: keyof ViewOptions; label: string }[] = [
 ];
 
 /**
- * Everything in the header that isn't a per-visit action: the view toggles, the
- * theme, and a manual sync. Keeping them in one menu leaves the header to
- * "New issue" and "Today".
+ * Everything in the header that isn't a per-visit action: the filters, the view
+ * toggles, the theme, and a manual sync. Keeping them in one menu leaves the
+ * header to Today and New issue.
  */
 export function OptionsMenu({
 	options,
 	onToggle,
 	projectLabel = [],
+	filters,
 }: {
 	options: ViewOptions;
 	onToggle: (key: keyof ViewOptions) => void;
@@ -32,6 +34,8 @@ export function OptionsMenu({
 	 * outlives an edit to .env. Naming the label here makes both visible.
 	 */
 	projectLabel?: string[];
+	/** The team and label submenus (FilterMenus), shown first. */
+	filters?: ReactNode;
 }) {
 	const queryClient = useQueryClient();
 	const isFetching = useCalendarFetchCount() > 0;
@@ -39,11 +43,21 @@ export function OptionsMenu({
 	return (
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger asChild>
-				<Button type="button" appearance="outlined" icon={<SlidersHorizontal />}>
-					Options
-				</Button>
+				<IconButton
+					type="button"
+					appearance="outlined"
+					label="Options"
+					icon={<SlidersHorizontal />}
+				/>
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content align="end" className="w-56">
+				{filters ? (
+					<>
+						<DropdownMenu.Label>Filter</DropdownMenu.Label>
+						{filters}
+						<DropdownMenu.Separator />
+					</>
+				) : null}
 				<DropdownMenu.Label>View</DropdownMenu.Label>
 				{OPTION_LABELS.map(({ key, label }) => (
 					<DropdownMenu.CheckboxItem
