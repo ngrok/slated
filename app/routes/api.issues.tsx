@@ -4,7 +4,7 @@ import { linearAuthorization } from "~/lib/linear.server";
 import {
 	fetchCalendarIssues,
 	MAX_PRIORITY,
-	updateIssueAssigneeAndPriority,
+	updateIssue,
 	updateIssueDueDate,
 	updateIssueLabels,
 	updateIssueState,
@@ -47,7 +47,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 // Update an issue: POST { issueId, dueDate?, labelIds?, stateId?, assigneeId?,
-// priority? } -> Linear issueUpdate.
+// priority?, projectId?, description? } -> Linear issueUpdate.
 export async function action({ request }: Route.ActionArgs) {
 	const body = (await request.json()) as {
 		issueId?: string;
@@ -56,6 +56,8 @@ export async function action({ request }: Route.ActionArgs) {
 		stateId?: string;
 		assigneeId?: string | null;
 		priority?: number;
+		projectId?: string | null;
+		description?: string;
 	};
 	if (!body.issueId) {
 		throw new Response("Missing 'issueId'", { status: 400 });
@@ -68,12 +70,21 @@ export async function action({ request }: Route.ActionArgs) {
 	// assigneeId present (string to assign, null to unassign) vs. absent.
 	const hasAssignee = "assigneeId" in body;
 	const hasPriority = "priority" in body;
-	if (!hasDueDate && !hasLabels && !hasState && !hasAssignee && !hasPriority) {
+	// projectId present (string to move, null to remove) vs. absent.
+	const hasProject = "projectId" in body;
+	const hasDescription = typeof body.description === "string";
+	if (
+		!hasDueDate &&
+		!hasLabels &&
+		!hasState &&
+		!hasAssignee &&
+		!hasPriority &&
+		!hasProject &&
+		!hasDescription
+	) {
 		throw new Response(
-			"Provide 'dueDate', 'labelIds', 'stateId', 'assigneeId', and/or 'priority'",
-			{
-				status: 400,
-			},
+			"Provide 'dueDate', 'labelIds', 'stateId', 'assigneeId', 'priority', 'projectId', and/or 'description'",
+			{ status: 400 },
 		);
 	}
 	if (
@@ -93,6 +104,8 @@ export async function action({ request }: Route.ActionArgs) {
 			...(hasState ? { stateId: body.stateId } : {}),
 			...(hasAssignee ? { assigneeId: body.assigneeId ?? null } : {}),
 			...(hasPriority ? { priority: body.priority } : {}),
+			...(hasProject ? { projectId: body.projectId ?? null } : {}),
+			...(hasDescription ? { description: body.description } : {}),
 		});
 		return Response.json({ ok: true });
 	}
@@ -118,13 +131,15 @@ export async function action({ request }: Route.ActionArgs) {
 			stateId: body.stateId as string,
 		});
 	}
-	if (hasAssignee || hasPriority) {
-		await updateIssueAssigneeAndPriority({
+	if (hasAssignee || hasPriority || hasProject || hasDescription) {
+		await updateIssue({
 			authorization: linearAuthorization,
 			issueId: body.issueId,
 			input: {
 				...(hasAssignee ? { assigneeId: body.assigneeId ?? null } : {}),
 				...(hasPriority ? { priority: body.priority } : {}),
+				...(hasProject ? { projectId: body.projectId ?? null } : {}),
+				...(hasDescription ? { description: body.description } : {}),
 			},
 		});
 	}

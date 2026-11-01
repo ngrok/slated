@@ -1,7 +1,7 @@
 import { useId } from "react";
 
 /**
- * The Slated mark and wordmark.
+ * The Slated mark.
  *
  * The mark is a calendar tile with one day filled in: the day a piece of work
  * is slated for. It is inlined as SVG rather than loaded from `/favicon.svg` so
@@ -25,7 +25,7 @@ const BINDING = "#1D293D";
 const DAY_OPACITY = 0.5;
 
 export function Mark({ size = 20, className }: { size?: number; className?: string }) {
-	// Two marks can share a page (header and dialog), and duplicate clip-path
+	// Two marks can share a page, and duplicate clip-path
 	// ids would make one of them clip against the other's rect.
 	const clipId = `slated-tile-${useId()}`;
 
@@ -54,28 +54,5 @@ export function Mark({ size = 20, className }: { size?: number; className?: stri
 				<rect x="17.5" y="20" width="6.5" height="5.5" rx="1.5" />
 			</g>
 		</svg>
-	);
-}
-
-/** Mark plus name. `lg` is for the sign-in screen, `sm` for the app header. */
-export function Wordmark({ size = "sm" }: { size?: "sm" | "lg" }) {
-	const large = size === "lg";
-	return (
-		<span className="flex items-center gap-2">
-			{/* The mark is decorative next to the name, which already reads as the
-			    product, so hide the SVG's own label from screen readers here. */}
-			<span aria-hidden="true" className="flex">
-				<Mark size={large ? 36 : 22} />
-			</span>
-			<span
-				className={
-					large
-						? "text-4xl font-medium tracking-tight text-strong"
-						: "text-xl font-medium tracking-tight text-strong"
-				}
-			>
-				Slated
-			</span>
-		</span>
 	);
 }

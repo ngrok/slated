@@ -627,6 +627,9 @@ type IssueEdit = {
 	/** null unassigns. */
 	assigneeId?: string | null;
 	priority?: number;
+	/** null removes the issue from its project. */
+	projectId?: string | null;
+	description?: string;
 };
 
 const issueEdits = new Map<string, IssueEdit>();
@@ -653,6 +656,13 @@ function applyIssueEdit(issue: CalendarIssue): CalendarIssue | null {
 			? {
 					priority: edit.priority,
 					priorityLabel: PRIORITY_LABELS[edit.priority] ?? "No priority",
+				}
+			: {}),
+		...(edit.projectId !== undefined
+			? {
+					project: edit.projectId
+						? projectSummary(edit.projectId.replace(/^demo-project-/, ""))
+						: null,
 				}
 			: {}),
 		...(edit.labelIds
@@ -734,6 +744,13 @@ export function demoMembers(): TeamMember[] {
 	return PEOPLE;
 }
 
+export function demoTeamProjects(teamId: string): NonNullable<CalendarIssue["project"]>[] {
+	const key = TEAMS.find((team) => team.id === teamId)?.key;
+	return PROJECT_TEMPLATES.filter((template) => key && template.teams.includes(key)).flatMap(
+		(template) => projectSummary(template.name) ?? [],
+	);
+}
+
 export function demoIssues(params: {
 	start: string;
 	end: string;
@@ -810,6 +827,10 @@ export function demoIssueDetail(id: string): { description: string | null } {
 	if (!issue) {
 		return { description: null };
 	}
+	const edited = issueEdits.get(id)?.description;
+	if (edited !== undefined) {
+		return { description: edited || null };
+	}
 	return { description: pick(DESCRIPTIONS, seeded(hash(`description:${id}`))()) };
 }
 
@@ -820,6 +841,8 @@ export function demoUpdateIssue(input: {
 	labelIds?: string[];
 	assigneeId?: string | null;
 	priority?: number;
+	projectId?: string | null;
+	description?: string;
 }): void {
 	const existing = issueEdits.get(input.issueId) ?? {};
 	issueEdits.set(input.issueId, {
@@ -829,6 +852,8 @@ export function demoUpdateIssue(input: {
 		...(input.labelIds ? { labelIds: input.labelIds } : {}),
 		...("assigneeId" in input ? { assigneeId: input.assigneeId } : {}),
 		...(input.priority !== undefined ? { priority: input.priority } : {}),
+		...("projectId" in input ? { projectId: input.projectId } : {}),
+		...(input.description !== undefined ? { description: input.description } : {}),
 	});
 }
 

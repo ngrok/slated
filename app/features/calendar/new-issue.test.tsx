@@ -5,7 +5,7 @@ import { userEvent } from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { DayCell } from "./day-cell";
-import { NewIssueDialog } from "./new-issue-dialog";
+import { NewIssueForm } from "./new-issue-form";
 import { calendarKeys, useCreateIssue } from "./queries";
 import type { CalendarIssue, LabelOption, TeamMember, TeamOption, WorkflowState } from "./types";
 
@@ -125,15 +125,21 @@ describe("useCreateIssue", () => {
 	});
 });
 
-describe("NewIssueDialog", () => {
+describe("NewIssueForm", () => {
 	test("creates an issue on the given date with the tags and assignee the user picks", async () => {
 		const fetchMock = mockCreateResponse();
-		const onClose = vi.fn();
+		const onCreated = vi.fn();
 		const queryClient = seededClient();
 
-		render(<NewIssueDialog date="2026-06-15" onClose={onClose} defaultTeamId="gtm" />, {
-			wrapper: wrapperFor(queryClient),
-		});
+		render(
+			<NewIssueForm
+				date="2026-06-15"
+				defaultTeamId="gtm"
+				onCreated={onCreated}
+				onCancel={vi.fn()}
+			/>,
+			{ wrapper: wrapperFor(queryClient) },
+		);
 
 		expect(screen.getByRole("button", { name: /Jun 15, 2026/ })).toBeInTheDocument();
 		// Tags start empty; the team's own label id goes out once one is picked.
@@ -155,14 +161,16 @@ describe("NewIssueDialog", () => {
 			labelIds: ["gtm-web"],
 			assigneeId: "user-grace",
 		});
-		expect(onClose).toHaveBeenCalled();
+		// The panel opens the created issue from this.
+		expect(onCreated).toHaveBeenCalledWith(created);
 	});
 
 	test("won't submit without a title", async () => {
 		const fetchMock = mockCreateResponse();
-		render(<NewIssueDialog date="2026-06-15" onClose={vi.fn()} defaultTeamId="gtm" />, {
-			wrapper: wrapperFor(seededClient()),
-		});
+		render(
+			<NewIssueForm date="2026-06-15" defaultTeamId="gtm" onCreated={vi.fn()} onCancel={vi.fn()} />,
+			{ wrapper: wrapperFor(seededClient()) },
+		);
 
 		await userEvent.click(screen.getByRole("button", { name: "Create issue" }));
 		expect(fetchMock).not.toHaveBeenCalled();

@@ -1,7 +1,8 @@
+import { DropdownMenu } from "@ngrok/mantle/dropdown-menu";
 import { act, render, renderHook, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import { FilterBar, useCalendarFilters } from "./filters";
+import { FilterMenus, useCalendarFilters } from "./filters";
 import type { LabelOption, TeamOption } from "./types";
 
 const teams: TeamOption[] = [
@@ -121,26 +122,36 @@ describe("useCalendarFilters", () => {
 	});
 });
 
-describe("FilterBar", () => {
-	test("renders teams in a dropdown and reflects team selection", async () => {
+describe("FilterMenus", () => {
+	test("lists the teams under Options and reflects the selection", async () => {
+		const onToggleTeam = vi.fn();
 		render(
-			<FilterBar
-				teams={teams}
-				teamsLoading={false}
-				teamIds={["gtm"]}
-				labelIds={[]}
-				labels={labels}
-				onToggleTeam={vi.fn()}
-				onToggleLabelGroup={vi.fn()}
-				onClearLabels={vi.fn()}
-			/>,
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger>Options</DropdownMenu.Trigger>
+				<DropdownMenu.Content>
+					<FilterMenus
+						teams={teams}
+						teamsLoading={false}
+						teamIds={["gtm"]}
+						labelIds={[]}
+						labels={labels}
+						onToggleTeam={onToggleTeam}
+						onToggleLabelGroup={vi.fn()}
+						onClearLabels={vi.fn()}
+					/>
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>,
 		);
 
-		expect(screen.getByRole("button", { name: "Teams (1)" })).toBeInTheDocument();
-		await userEvent.click(screen.getByRole("button", { name: "Teams (1)" }));
-		expect(screen.getByText("Filter by team")).toBeInTheDocument();
-		expect(screen.getByRole("checkbox", { name: /GTM/ })).toBeChecked();
-		expect(screen.getByRole("checkbox", { name: /Content/ })).not.toBeChecked();
-		expect(screen.getByRole("button", { name: /labels/i })).toBeInTheDocument();
+		await userEvent.click(screen.getByRole("button", { name: "Options" }));
+		await userEvent.click(screen.getByRole("menuitem", { name: /Teams/ }));
+		expect(screen.getByRole("menuitemcheckbox", { name: /GTM/ })).toBeChecked();
+		const content = screen.getByRole("menuitemcheckbox", { name: /Content/ });
+		expect(content).not.toBeChecked();
+
+		await userEvent.click(content);
+		expect(onToggleTeam).toHaveBeenCalledWith("content");
+		// Held open, so another team can be picked straight away.
+		expect(screen.getByRole("menuitemcheckbox", { name: /GTM/ })).toBeInTheDocument();
 	});
 });

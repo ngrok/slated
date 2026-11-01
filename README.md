@@ -48,8 +48,8 @@ Slated:
   **Options**.
 - Reschedules an issue or project the moment you drop it on a new day. The card
   moves first, then rolls back if Linear rejects the write.
-- Opens any issue in a side panel beside the calendar to read its description
-  and edit its status, assignee, priority, due date, and tags. `J` and `K` step
+- Opens any issue in a side panel beside the calendar to edit its status,
+  assignee, priority, due date, project, description, and tags. `J` and `K` step
   through the issues on the calendar. Clear the date to drop it off the
   calendar, with an undo.
 - Creates issues in place. Hover a day, hit `+`, and set a title, team, due

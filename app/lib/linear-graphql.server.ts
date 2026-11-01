@@ -469,6 +469,60 @@ export async function fetchTeamMembers(
 	return members.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+const TEAM_PROJECTS_QUERY = `
+query TeamProjects($teamId: String!, $first: Int!, $after: String) {
+  team(id: $teamId) {
+    projects(
+      first: $first
+      after: $after
+      filter: { status: { type: { nin: ["completed", "canceled"] } } }
+    ) {
+      pageInfo { hasNextPage endCursor }
+      nodes { id name url }
+    }
+  }
+}`;
+
+type TeamProject = NonNullable<CalendarIssue["project"]>;
+
+type TeamProjectsData = {
+	team: {
+		projects: {
+			pageInfo: { hasNextPage: boolean; endCursor: string | null };
+			nodes: TeamProject[];
+		};
+	};
+};
+
+/**
+ * The projects an issue in this team can move into. Finished and canceled
+ * projects are left out, the way Linear's own project menu leads with open
+ * ones. The nodes carry no nested connections, so a page of 100 stays cheap
+ * (see the project page-size note above).
+ */
+export async function fetchTeamProjects(
+	authorization: string,
+	teamId: string,
+): Promise<TeamProject[]> {
+	const projects: TeamProject[] = [];
+	let after: string | null = null;
+
+	for (let page = 0; page < 10; page++) {
+		const result: TeamProjectsData = await linearGraphQL<TeamProjectsData>(
+			authorization,
+			TEAM_PROJECTS_QUERY,
+			{ teamId, first: 100, after },
+		);
+		projects.push(...result.team.projects.nodes);
+		if (!result.team.projects.pageInfo.hasNextPage) {
+			break;
+		}
+		after = result.team.projects.pageInfo.endCursor;
+	}
+
+	return projects.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 const CREATE_ISSUE_MUTATION = `
 mutation CreateIssue($input: IssueCreateInput!) {
   issueCreate(input: $input) {
@@ -521,11 +575,20 @@ mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) {
   }
 }`;
 
-/** Set an issue's assignee (null unassigns) and/or priority in one write. */
-export async function updateIssueAssigneeAndPriority(params: {
+/**
+ * Set any of an issue's assignee, priority, project, and description in one
+ * write. A null assignee or project removes it.
+ */
+export async function updateIssue(params: {
 	authorization: string;
 	issueId: string;
-	input: { assigneeId?: string | null; priority?: number };
+	input: {
+		assigneeId?: string | null;
+		priority?: number;
+		projectId?: string | null;
+		/** Markdown; an empty string clears it. */
+		description?: string;
+	};
 }): Promise<void> {
 	const data = await linearGraphQL<{ issueUpdate: { success: boolean } }>(
 		params.authorization,

@@ -20,17 +20,10 @@ const issue: CalendarIssue = {
 };
 
 describe("IssueCard", () => {
-	test("shows the title and links to the issue and project", () => {
+	test("shows the title without links to Linear, so a click opens the panel", () => {
 		render(<IssueCard issue={issue} />);
 		expect(screen.getByText("Launch blog post")).toBeInTheDocument();
-		expect(screen.getByRole("link", { name: /open issue gtm-1/i })).toHaveAttribute(
-			"href",
-			issue.url,
-		);
-		expect(screen.getByRole("link", { name: /open project/i })).toHaveAttribute(
-			"href",
-			"https://linear.app/ngrok/project/q3",
-		);
+		expect(screen.queryByRole("link")).not.toBeInTheDocument();
 	});
 
 	test("conveys the workflow state through an accessible status icon", () => {
@@ -38,10 +31,5 @@ describe("IssueCard", () => {
 		// The status is shown as a Linear-style glyph (no text label on the card);
 		// its accessible name carries the state name.
 		expect(screen.getByRole("img", { name: "In Progress" })).toBeInTheDocument();
-	});
-
-	test("omits the project link when there is no project", () => {
-		render(<IssueCard issue={{ ...issue, project: null }} />);
-		expect(screen.queryByRole("link", { name: /open project/i })).not.toBeInTheDocument();
 	});
 });

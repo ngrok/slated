@@ -6,10 +6,13 @@ import { IssueCard } from "./issue-card";
 import { SelectedIssueContext } from "./selected-issue";
 import type { CalendarIssue } from "./types";
 
-// dnd-kit's listeners swallow the synthetic `click`, so we detect a tap from the
-// pointer events it uses: if the pointer barely moved between down and up, treat
-// it as a click and open the side panel. A real drag moves further and is ignored.
-const TAP_THRESHOLD_PX = 5;
+/**
+ * How far the pointer must travel before a press becomes a drag. MonthList's
+ * drag sensor uses the same distance, so every press either opens the issue or
+ * drags it, never neither: a hand moving a few pixels during a click, as it
+ * often does on a trackpad, still counts as a click.
+ */
+export const DRAG_DISTANCE_PX = 8;
 
 export function DraggableIssueCard({
 	issue,
@@ -57,13 +60,10 @@ export function DraggableIssueCard({
 				if (!start) {
 					return;
 				}
-				// Let clicks on the issue/project links do their own thing.
-				if ((event.target as HTMLElement).closest("a")) {
-					return;
-				}
-				const movedX = Math.abs(event.clientX - start.x);
-				const movedY = Math.abs(event.clientY - start.y);
-				if (movedX < TAP_THRESHOLD_PX && movedY < TAP_THRESHOLD_PX) {
+				// dnd-kit's listeners swallow the synthetic click, so a press that
+				// stayed short of a drag is the click.
+				const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y);
+				if (moved < DRAG_DISTANCE_PX) {
 					onOpen(issue);
 				}
 			}}

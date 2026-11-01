@@ -22,7 +22,9 @@ import {
 	useState,
 	useSyncExternalStore,
 } from "react";
+import { Mark } from "~/components/wordmark";
 import { monthGridRange, toISODate, WEEKDAY_LABELS } from "./date-utils";
+import { DRAG_DISTANCE_PX } from "./draggable-issue-card";
 import { IssueCard } from "./issue-card";
 import { IssuePanel } from "./issue-panel";
 import { MonthSection } from "./month-section";
@@ -81,6 +83,57 @@ function useIssueById(id: string | null): CalendarIssue | null {
 	);
 }
 
+const NO_ISSUES: CalendarIssue[] = [];
+
+/**
+ * Every issue the calendar has loaded for the current filters, once each, for
+ * the panel's overview. It reads the cache the month sections fill rather than
+ * fetching, so it covers the months rendered so far. The snapshot is rebuilt
+ * only when a matching query's data changes, which useSyncExternalStore needs
+ * to avoid re-rendering forever.
+ */
+function useLoadedIssues(teamIds: string[], labelIds: string[]): CalendarIssue[] {
+	const queryClient = useQueryClient();
+	const last = useRef<{ filter: string; datas: unknown[]; issues: CalendarIssue[] }>({
+		filter: "",
+		datas: [],
+		issues: NO_ISSUES,
+	});
+	const filter = `${teamIds.join(",")}|${labelIds.join(",")}`;
+	const subscribe = useCallback(
+		(onChange: () => void) => queryClient.getQueryCache().subscribe(onChange),
+		[queryClient],
+	);
+	return useSyncExternalStore(
+		subscribe,
+		() => {
+			// Keys are [root, "issues", start, end, teamIds, labelIds] (calendarKeys).
+			const datas = queryClient
+				.getQueriesData<CalendarIssue[]>({ queryKey: ["calendar", "issues"] })
+				.filter(([key]) => `${key[4]}|${key[5]}` === filter)
+				.map(([, data]) => data);
+			const prev = last.current;
+			if (
+				prev.filter === filter &&
+				prev.datas.length === datas.length &&
+				prev.datas.every((data, index) => data === datas[index])
+			) {
+				return prev.issues;
+			}
+			// Neighbouring months overlap at the edges of their grids.
+			const byId = new Map<string, CalendarIssue>();
+			for (const data of datas) {
+				for (const issue of data ?? []) {
+					byId.set(issue.id, issue);
+				}
+			}
+			last.current = { filter, datas, issues: [...byId.values()] };
+			return last.current.issues;
+		},
+		() => NO_ISSUES,
+	);
+}
+
 /**
  * What a dragged card carries: exactly one of an issue or a project, set by
  * DraggableIssueCard / DraggableProjectCard.
@@ -96,7 +149,11 @@ function dragPayload(data: unknown): DragPayload | null {
 }
 
 /** Imperative handle so the page header's "Today" button can scroll the list. */
-export type MonthListHandle = { scrollToToday: () => void };
+export type MonthListHandle = {
+	scrollToToday: () => void;
+	/** Open the new-issue form in the side panel, due on the given day. */
+	newIssue: (dueDate: string) => void;
+};
 
 export const MonthList = forwardRef<
 	MonthListHandle,
@@ -106,12 +163,8 @@ export const MonthList = forwardRef<
 		options: ViewOptions;
 		canFetchIssues: boolean;
 		blockedMessage?: string;
-		onNewIssue: (dueDate: string) => void;
 	}
->(function MonthList(
-	{ teamIds, labelIds, options, canFetchIssues, blockedMessage, onNewIssue },
-	ref,
-) {
+>(function MonthList({ teamIds, labelIds, options, canFetchIssues, blockedMessage }, ref) {
 	const hydrated = useHydrated();
 	const queryClient = useQueryClient();
 	const gridFetchCount = useCalendarFetchCount();
@@ -181,7 +234,6 @@ export const MonthList = forwardRef<
 		const nextTop = Math.max(0, targetTopInScroll - root.clientHeight * TODAY_SCROLL_FRACTION);
 		root.scrollTo({ top: nextTop });
 	}, []);
-	useImperativeHandle(ref, () => ({ scrollToToday }), [scrollToToday]);
 
 	// Land on today on first paint, then correct once the first fetch settles,
 	// because cards above today can change row heights.
@@ -284,21 +336,47 @@ export const MonthList = forwardRef<
 		}
 	}, [months, queryClient, teamIds, labelIds, canFetchIssues, options.showProjects]);
 
-	// Issue side panel, driven reactively from the cache (see useIssueById).
+	// Issue side panel, driven reactively from the cache (see useIssueById). It
+	// holds one thing at a time: an issue, the new-issue form, or nothing.
 	const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+	const [newIssueDate, setNewIssueDate] = useState<string | null>(null);
 	const selectedIssue = useIssueById(selectedIssueId);
-	const handleOpenIssue = useCallback((issue: CalendarIssue) => setSelectedIssueId(issue.id), []);
-	const closeIssue = useCallback(() => setSelectedIssueId(null), []);
+	const loadedIssues = useLoadedIssues(teamIds, labelIds);
+	// The overview leaves out what the calendar hides.
+	const overviewIssues = useMemo(
+		() => (options.showSubtasks ? loadedIssues : loadedIssues.filter((issue) => !issue.parent)),
+		[loadedIssues, options.showSubtasks],
+	);
+	const handleOpenIssue = useCallback((issue: CalendarIssue) => {
+		setNewIssueDate(null);
+		setSelectedIssueId(issue.id);
+	}, []);
+	const openNewIssue = useCallback((dueDate: string) => {
+		setSelectedIssueId(null);
+		setNewIssueDate(dueDate);
+	}, []);
+	const closeIssue = useCallback(() => {
+		setSelectedIssueId(null);
+		setNewIssueDate(null);
+	}, []);
+	useImperativeHandle(ref, () => ({ scrollToToday, newIssue: openNewIssue }), [
+		scrollToToday,
+		openNewIssue,
+	]);
 	// The grid already renders the visible issues in calendar order (weeks top
 	// to bottom, days left to right, cards top to bottom), filtered by the view
-	// options, so the next issue is simply the next card in the document.
+	// options, so the next issue is simply the next card in the document. With
+	// nothing open, start from the first card in view.
 	const stepIssue = useCallback(
 		(direction: 1 | -1) => {
-			const cards = [
-				...(scrollRef.current?.querySelectorAll<HTMLElement>("[data-issue-id]") ?? []),
-			];
+			const root = scrollRef.current;
+			const cards = [...(root?.querySelectorAll<HTMLElement>("[data-issue-id]") ?? [])];
 			const index = cards.findIndex((card) => card.dataset.issueId === selectedIssueId);
-			const next = index === -1 ? undefined : cards[index + direction];
+			const viewTop = root?.getBoundingClientRect().top ?? 0;
+			const next =
+				index === -1
+					? cards.find((card) => card.getBoundingClientRect().top >= viewTop)
+					: cards[index + direction];
 			if (next?.dataset.issueId) {
 				setSelectedIssueId(next.dataset.issueId);
 				next.scrollIntoView({ block: "nearest" });
@@ -312,8 +390,10 @@ export const MonthList = forwardRef<
 	const updateDueDate = useUpdateDueDate();
 	const updateTargetDate = useUpdateTargetDate();
 	const [activeCard, setActiveCard] = useState<DragPayload | null>(null);
-	// Require a small drag distance so clicking the issue/project links still works.
-	const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+	// Anything shorter than this is a click that opens the issue (see DraggableIssueCard).
+	const sensors = useSensors(
+		useSensor(PointerSensor, { activationConstraint: { distance: DRAG_DISTANCE_PX } }),
+	);
 
 	function handleDragStart(event: DragStartEvent) {
 		setActiveCard(dragPayload(event.active.data.current));
@@ -337,16 +417,51 @@ export const MonthList = forwardRef<
 		}
 	}
 
-	if (noTeams) {
-		return <p className="text-sm text-muted">Select at least one team to see issues.</p>;
-	}
-	if (!canFetchIssues) {
-		return <p className="text-sm text-muted">{blockedMessage ?? "Select labels to see issues."}</p>;
+	// The calendar and the panel are returned side by side, not wrapped, so they
+	// land in CalendarPage's grid next to its header.
+	const panel = (
+		<IssuePanel
+			issue={selectedIssue}
+			newIssue={newIssueDate ? { date: newIssueDate, defaultTeamId: teamIds[0] ?? null } : null}
+			overviewIssues={overviewIssues}
+			onOpenIssue={handleOpenIssue}
+			onClose={closeIssue}
+			onStep={stepIssue}
+			// Show what was just created. One the filters hide isn't in the cache,
+			// so the panel falls back to its empty state.
+			onCreated={(issue) => handleOpenIssue(issue)}
+		/>
+	);
+	// The app's mark sits in the grid's top-left corner, above the month labels.
+	const corner = (
+		<h1 className="flex">
+			<Mark size={24} />
+		</h1>
+	);
+	const mainClass =
+		"flex min-h-0 min-w-0 flex-1 flex-col lg:col-start-1 lg:row-span-2 lg:row-start-1";
+
+	if (noTeams || !canFetchIssues) {
+		return (
+			<>
+				<main className={mainClass}>
+					<div className="flex items-center gap-3 p-4">
+						{corner}
+						<p className="text-sm text-muted">
+							{noTeams
+								? "Select at least one team to see issues."
+								: (blockedMessage ?? "Select labels to see issues.")}
+						</p>
+					</div>
+				</main>
+				{panel}
+			</>
+		);
 	}
 
 	return (
-		<div className="flex min-h-0 flex-1">
-			<div className="flex min-h-0 min-w-0 flex-1 flex-col">
+		<>
+			<main className={mainClass}>
 				{hydrated ? (
 					<DndContext
 						sensors={sensors}
@@ -358,11 +473,11 @@ export const MonthList = forwardRef<
 							<div ref={topSentinelRef} className="h-px" />
 							<div
 								className={cx(
-									"sticky top-0 z-20 grid border-b border-card-muted bg-base py-2",
+									"sticky top-0 z-20 grid h-12 items-center border-b border-card-muted bg-base",
 									gridColsClass,
 								)}
 							>
-								<div />
+								<div className="flex items-center pl-4">{corner}</div>
 								{weekdayLabels.map((label) => (
 									<div key={label} className="px-1 text-base font-medium text-muted">
 										{label}
@@ -383,7 +498,7 @@ export const MonthList = forwardRef<
 											today={today}
 											gridColsClass={gridColsClass}
 											onOpenIssue={handleOpenIssue}
-											onNewIssue={onNewIssue}
+											onNewIssue={openNewIssue}
 										/>
 									))}
 								</SelectedIssueContext.Provider>
@@ -402,11 +517,8 @@ export const MonthList = forwardRef<
 				) : (
 					<div className="h-96 animate-pulse rounded border border-card bg-card" />
 				)}
-			</div>
-
-			{selectedIssue ? (
-				<IssuePanel issue={selectedIssue} onClose={closeIssue} onStep={stepIssue} />
-			) : null}
-		</div>
+			</main>
+			{panel}
+		</>
 	);
 });

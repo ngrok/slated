@@ -211,9 +211,32 @@ export function useTeamMembers(teamId: string | null) {
 	});
 }
 
+type IssueProject = NonNullable<CalendarIssue["project"]>;
+
+/** The open projects of a team, for the panel's project picker. */
+export function useTeamProjects(teamId: string | null) {
+	return useQuery({
+		queryKey: [ROOT, "team-projects", teamId] as const,
+		queryFn: async () => {
+			const res = await fetch(`/api/team-projects?teamId=${encodeURIComponent(teamId as string)}`, {
+				headers: { Accept: "application/json" },
+			});
+			if (!res.ok) {
+				throw new Error(`Failed to load projects (${res.status})`);
+			}
+			const json = (await res.json()) as { projects: IssueProject[] };
+			return json.projects;
+		},
+		enabled: Boolean(teamId),
+		staleTime: 5 * 60 * 1000,
+	});
+}
+
+const issueDetailKey = (issueId: string | null) => [ROOT, "issue", issueId] as const;
+
 export function useIssueDescription(issueId: string | null) {
 	return useQuery({
-		queryKey: [ROOT, "issue", issueId] as const,
+		queryKey: issueDetailKey(issueId),
 		queryFn: async () => {
 			const res = await fetch(`/api/issue?id=${encodeURIComponent(issueId as string)}`, {
 				headers: { Accept: "application/json" },
@@ -608,6 +631,69 @@ export function useUpdatePriority() {
 		},
 		onSettled: () => {
 			queryClient.invalidateQueries(issuesQueryFilter);
+		},
+	});
+}
+
+/**
+ * Move an issue into a project (null removes it from its project) with an
+ * optimistic cache update. The caller passes the whole project so the panel
+ * shows its name and link at once.
+ */
+export function useUpdateProject() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ issueId, project }: { issueId: string; project: IssueProject | null }) =>
+			postIssueUpdate({ issueId, projectId: project?.id ?? null }, "project"),
+		onMutate: async ({ issueId, project }) => {
+			await queryClient.cancelQueries(issuesQueryFilter);
+			const previous = queryClient.getQueriesData<CalendarIssue[]>(issuesQueryFilter);
+			queryClient.setQueriesData<CalendarIssue[]>(issuesQueryFilter, (old) =>
+				old?.map((issue) => (issue.id === issueId ? { ...issue, project } : issue)),
+			);
+			return { previous };
+		},
+		onError: (_error, _vars, context) => {
+			rollbackTo(
+				queryClient,
+				context?.previous,
+				"We couldn't save that change — it's been reverted.",
+			);
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries(issuesQueryFilter);
+		},
+	});
+}
+
+/**
+ * Replace an issue's description. The description lives in its own query (the
+ * calendar list doesn't load it), so that is the cache entry updated, and
+ * rolled back if Linear rejects the write.
+ */
+export function useUpdateDescription() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ issueId, description }: { issueId: string; description: string }) =>
+			postIssueUpdate({ issueId, description }, "description"),
+		onMutate: async ({ issueId, description }) => {
+			const key = issueDetailKey(issueId);
+			await queryClient.cancelQueries({ queryKey: key });
+			const previous: CachedEntries = [[key, queryClient.getQueryData(key)]];
+			queryClient.setQueryData(key, { description: description || null });
+			return { previous };
+		},
+		onError: (_error, _vars, context) => {
+			rollbackTo(
+				queryClient,
+				context?.previous,
+				"We couldn't save the description — it's been reverted.",
+			);
+		},
+		onSettled: (_data, _error, { issueId }) => {
+			queryClient.invalidateQueries({ queryKey: issueDetailKey(issueId) });
 		},
 	});
 }
