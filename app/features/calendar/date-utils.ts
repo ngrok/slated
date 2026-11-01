@@ -70,9 +70,26 @@ function groupByDate<T>(items: T[], dateOf: (item: T) => string): Map<string, T[
 	return byDate;
 }
 
-/** Bucket issues by their dueDate, the day the calendar places them on. */
+// Linear's priorities are 1 (urgent) to 4 (low), with 0 for none. None sorts
+// after low rather than first.
+const priorityRank = (issue: CalendarIssue) => issue.priority || Number.POSITIVE_INFINITY;
+
+/**
+ * Bucket issues by their dueDate, the day the calendar places them on, most
+ * urgent first. A day tile shows only its first few cards, so this decides
+ * which stay visible; ties fall back to the identifier so cards don't shuffle
+ * between renders.
+ */
 export function groupIssuesByDueDate(issues: CalendarIssue[]): Map<string, CalendarIssue[]> {
-	return groupByDate(issues, (issue) => issue.dueDate);
+	const byDate = groupByDate(issues, (issue) => issue.dueDate);
+	for (const day of byDate.values()) {
+		day.sort(
+			(a, b) =>
+				priorityRank(a) - priorityRank(b) ||
+				a.identifier.localeCompare(b.identifier, undefined, { numeric: true }),
+		);
+	}
+	return byDate;
 }
 
 /** Bucket projects by their targetDate, the day the calendar places them on. */

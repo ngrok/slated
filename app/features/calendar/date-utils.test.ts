@@ -48,22 +48,23 @@ describe("monthOwnedWeeks", () => {
 });
 
 describe("groupIssuesByDueDate", () => {
+	const make = (id: string, dueDate: string, priority = 0): CalendarIssue => ({
+		id,
+		identifier: `GTM-${id}`,
+		title: `Issue ${id}`,
+		dueDate,
+		url: "https://linear.app/x",
+		priority,
+		priorityLabel: "",
+		state: { id: "s", name: "Todo", color: "#fff", type: "unstarted" },
+		assignee: null,
+		labels: [],
+		project: null,
+		team: { id: "t", key: "GTM", name: "GTM" },
+		parent: null,
+	});
+
 	test("buckets issues by their dueDate", () => {
-		const make = (id: string, dueDate: string): CalendarIssue => ({
-			id,
-			identifier: `GTM-${id}`,
-			title: `Issue ${id}`,
-			dueDate,
-			url: "https://linear.app/x",
-			priority: 0,
-			priorityLabel: "No priority",
-			state: { id: "s", name: "Todo", color: "#fff", type: "unstarted" },
-			assignee: null,
-			labels: [],
-			project: null,
-			team: { id: "t", key: "GTM", name: "GTM" },
-			parent: null,
-		});
 		const grouped = groupIssuesByDueDate([
 			make("1", "2026-06-23"),
 			make("2", "2026-06-23"),
@@ -72,5 +73,24 @@ describe("groupIssuesByDueDate", () => {
 		expect(grouped.get("2026-06-23")).toHaveLength(2);
 		expect(grouped.get("2026-06-24")).toHaveLength(1);
 		expect(grouped.get("2026-06-25")).toBeUndefined();
+	});
+
+	test("orders a day most urgent first, with no priority last", () => {
+		const day = "2026-06-23";
+		const grouped = groupIssuesByDueDate([
+			make("12", day, 3),
+			make("5", day, 0),
+			make("7", day, 4),
+			make("9", day, 3),
+			make("2", day, 1),
+		]);
+		// Medium ties go by identifier as a number: GTM-9 before GTM-12.
+		expect(grouped.get(day)?.map((issue) => issue.identifier)).toEqual([
+			"GTM-2",
+			"GTM-9",
+			"GTM-12",
+			"GTM-7",
+			"GTM-5",
+		]);
 	});
 });

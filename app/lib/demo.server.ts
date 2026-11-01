@@ -41,6 +41,11 @@ const ISSUES_PER_MONTH = 22;
 // screen disjoint.
 const TEMPLATE_STRIDE = 7;
 const PROJECTS_PER_MONTH = 2;
+// Every month has a couple of pile-up days, the way a launch puts a post, a
+// newsletter, and a video on the same date. Their sizes overflow a day tile
+// (see SLOTS in day-cell), so the demo shows the "+N more" popover. The first
+// slots of each month go to these days in order; the rest scatter.
+const BUSY_DAY_SIZES = [6, 5];
 
 const TEAMS: TeamOption[] = [
 	{ id: "team-con", key: "CON", name: "Content" },
@@ -486,14 +491,38 @@ function projectSummary(name: string): CalendarIssue["project"] {
 }
 
 /**
+ * The weekdays a month's busy days fall on, one per BUSY_DAY_SIZES entry, all
+ * different. Seeded by the month, so every window agrees on them.
+ */
+function busyDaysOf(monthIndex: number, weekdays: Date[]): Date[] {
+	const random = seeded(hash(`busy:${monthIndex}`));
+	const remaining = [...weekdays];
+	return BUSY_DAY_SIZES.flatMap(() => remaining.splice(Math.floor(random() * remaining.length), 1));
+}
+
+/** The busy day a slot belongs to, or undefined when the slot scatters. */
+function busyDayForSlot(slot: number, busyDays: Date[]): Date | undefined {
+	let end = 0;
+	for (const [index, size] of BUSY_DAY_SIZES.entries()) {
+		end += size;
+		if (slot < end) {
+			return busyDays[index];
+		}
+	}
+	return undefined;
+}
+
+/**
  * Every issue for one month. The month picks a rolling slice of the templates,
- * so neighbouring months hold different work, and each template lands on a
- * weekday chosen by its own seed. Several templates can share a day; that is
- * what gives some days three cards and others none.
+ * so neighbouring months hold different work. The first few land on the
+ * month's busy days and the rest on a weekday chosen by their own seed, where
+ * they can still collide; that is what gives some days several cards and
+ * others none.
  */
 function issuesForMonth(month: Date): CalendarIssue[] {
 	const monthIndex = monthIndexOf(month);
 	const weekdays = weekdaysOfMonth(month);
+	const busyDays = busyDaysOf(monthIndex, weekdays);
 	const today = new Date();
 	const issues: CalendarIssue[] = [];
 
@@ -505,7 +534,9 @@ function issuesForMonth(month: Date): CalendarIssue[] {
 			continue;
 		}
 		const random = seeded(hash(`issue:${monthIndex}:${templateIndex}`));
-		const day = pick(weekdays, random());
+		// Roll for a day either way, so every later roll stays where it was.
+		const scattered = pick(weekdays, random());
+		const day = busyDayForSlot(slot, busyDays) ?? scattered;
 		const team = teamByKey(template.team);
 		const state = statusForDay(daysFromToday(day, today), random());
 		const assigneeRoll = random();
