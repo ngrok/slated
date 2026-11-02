@@ -1,4 +1,4 @@
-import { Button } from "@ngrok/mantle/button";
+import { Button, IconButton } from "@ngrok/mantle/button";
 import { Plus } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef } from "react";
 import { toISODate } from "./date-utils";
@@ -111,16 +111,14 @@ export function CalendarPage({
 				>
 					Today
 				</Button>
-				{/* IconButton has no filled style, and the one write action should
-				    still stand out, so this is a square filled Button. ps-0 clears the
-				    icon padding Button adds, which pushes a lone icon off-center. */}
-				<Button
+				{/* Ghost icons, like Options beside it: Today is the only boxed
+				    control, so the header reads as one button and two icons. */}
+				<IconButton
 					type="button"
-					appearance="filled"
-					aria-label="New issue"
+					appearance="ghost"
+					label="New issue"
 					title="New issue"
 					icon={<Plus />}
-					className="aspect-square px-0 ps-0"
 					onClick={() => listRef.current?.newIssue(toISODate(new Date()))}
 				/>
 				<OptionsMenu

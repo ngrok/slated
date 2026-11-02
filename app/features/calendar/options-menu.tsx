@@ -1,6 +1,6 @@
 import { IconButton } from "@ngrok/mantle/button";
 import { DropdownMenu } from "@ngrok/mantle/dropdown-menu";
-import { ArrowsClockwise, SlidersHorizontal } from "@phosphor-icons/react";
+import { ArrowsClockwise, DotsThree } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { ThemeMenuRadioGroup } from "~/components/theme-menu";
@@ -43,12 +43,7 @@ export function OptionsMenu({
 	return (
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger asChild>
-				<IconButton
-					type="button"
-					appearance="outlined"
-					label="Options"
-					icon={<SlidersHorizontal />}
-				/>
+				<IconButton type="button" appearance="ghost" label="Options" icon={<DotsThree />} />
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content align="end" className="w-56">
 				{filters ? (
