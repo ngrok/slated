@@ -1,6 +1,6 @@
 {
 	"name": "slated",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"private": true,
 	"description": "A content calendar that runs live on top of Linear.",
 	"license": "MIT",
