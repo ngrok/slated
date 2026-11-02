@@ -161,19 +161,15 @@ separate.
 
 Anything other people can reach needs access control in front of it.
 
-A container image ships for every commit on `main`:
-
-```bash
-docker run --rm -p 3000:3000 --env-file .env ghcr.io/ngrok-adhoc/slated:latest
-```
-
-Pin an exact build with `ghcr.io/ngrok-adhoc/slated:sha-<commit>`, or build it
-yourself:
+Build the image from the [Dockerfile](./Dockerfile) and run it:
 
 ```bash
 docker build -t slated .
 docker run --rm -p 3000:3000 --env-file .env slated
 ```
+
+To build a release rather than `main`, check out its tag first, such as
+`git checkout v0.2.0`.
 
 Bind it to `localhost`, or front it with something that authenticates visitors.
 Slated serves the calendar to whoever asks.
