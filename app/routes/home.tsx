@@ -80,7 +80,7 @@ export function InvalidApiKeyScreen() {
 				<code>LINEAR_API_KEY</code> is set, but Linear would not accept it. Check that it is current
 				and pasted whole, then restart the server.
 			</p>
-			<Button asChild appearance="outlined">
+			<Button asChild appearance="outlined" intent="accent">
 				<a href="https://linear.app/settings/api" target="_blank" rel="noreferrer">
 					Manage your API keys
 				</a>

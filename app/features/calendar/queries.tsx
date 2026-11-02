@@ -30,7 +30,7 @@ function rollbackTo(
 		queryClient.setQueryData(key, data);
 	}
 	makeToast(
-		<Toast.Root priority="danger">
+		<Toast.Root intent="danger">
 			<Toast.Message>{message}</Toast.Message>
 		</Toast.Root>,
 	);
@@ -325,14 +325,14 @@ export function useCreateIssue() {
 				}
 			}
 			makeToast(
-				<Toast.Root priority="success">
+				<Toast.Root intent="success">
 					<Toast.Message>Created {issue.identifier}.</Toast.Message>
 				</Toast.Root>,
 			);
 		},
 		onError: () => {
 			makeToast(
-				<Toast.Root priority="danger">
+				<Toast.Root intent="danger">
 					<Toast.Message>We couldn't create that issue.</Toast.Message>
 				</Toast.Root>,
 			);

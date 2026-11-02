@@ -1,10 +1,5 @@
-import darkCssUrl from "@ngrok/mantle/mantle-dark.css?url";
-import darkHighContrastCssUrl from "@ngrok/mantle/mantle-dark-high-contrast.css?url";
-import lightHighContrastCssUrl from "@ngrok/mantle/mantle-light-high-contrast.css?url";
 import {
 	extractThemeCookie,
-	MantleStyleSheets,
-	mantleStyleSheetUrls,
 	PreventWrongThemeFlashScript,
 	ThemeProvider,
 	useInitialHtmlThemeProps,
@@ -34,17 +29,6 @@ export const links: LinksFunction = () => [
 	{ rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
 ];
 
-/*
- * app.css only carries the light theme. Mantle ships the other three as
- * separate files that load behind a media query, so a light-mode visitor never
- * downloads them.
- */
-const themeUrls = mantleStyleSheetUrls({
-	darkCssUrl,
-	lightHighContrastCssUrl,
-	darkHighContrastCssUrl,
-});
-
 export function loader({ request }: Route.LoaderArgs) {
 	// Mantle keeps the chosen theme in a cookie so the server can render the
 	// right one on the first paint. Send only that cookie to the browser — the
@@ -64,7 +48,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				{/* Applies the stored theme before the first paint. Without it a
 				    dark-mode visitor sees a flash of the light theme. */}
 				<PreventWrongThemeFlashScript />
-				<MantleStyleSheets {...themeUrls} ssrCookie={rootData?.themeCookie} />
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
 				{/* The mark's slate, for the browser chrome on Android and on macOS

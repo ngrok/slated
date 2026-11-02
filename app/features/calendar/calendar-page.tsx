@@ -107,6 +107,7 @@ export function CalendarPage({
 				<Button
 					type="button"
 					appearance="outlined"
+					intent="accent"
 					onClick={() => listRef.current?.scrollToToday()}
 				>
 					Today
@@ -116,6 +117,7 @@ export function CalendarPage({
 				<IconButton
 					type="button"
 					appearance="ghost"
+					intent="neutral"
 					label="New issue"
 					title="New issue"
 					icon={<Plus />}

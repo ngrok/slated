@@ -72,8 +72,6 @@ describe("OptionsMenu", () => {
 			"System",
 			"Light",
 			"Dark",
-			"Light high contrast",
-			"Dark high contrast",
 		]);
 		expect(screen.getByRole("menuitem", { name: "Refresh" })).toBeInTheDocument();
 	});

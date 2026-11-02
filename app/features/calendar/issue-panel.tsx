@@ -128,6 +128,7 @@ export function IssuePanel({
 		<IconButton
 			type="button"
 			appearance="ghost"
+			intent="neutral"
 			size="sm"
 			label="Close"
 			icon={<X />}
@@ -157,6 +158,7 @@ export function IssuePanel({
 						<IconButton
 							type="button"
 							appearance="ghost"
+							intent="neutral"
 							size="sm"
 							label="Previous issue"
 							icon={<CaretUp />}
@@ -165,6 +167,7 @@ export function IssuePanel({
 						<IconButton
 							type="button"
 							appearance="ghost"
+							intent="neutral"
 							size="sm"
 							label="Next issue"
 							icon={<CaretDown />}
@@ -424,7 +427,7 @@ function IssueDetails({ issue, onClose }: { issue: CalendarIssue; onClose: () =>
 		// The issue leaves the calendar, so there is nothing left to show here.
 		onClose();
 		makeToast(
-			<Toast.Root priority="info">
+			<Toast.Root intent="info">
 				<Toast.Message>Cleared the due date on {identifier}.</Toast.Message>
 				<Toast.Action onClick={() => updateDueDate.mutate({ issueId: id, dueDate })}>
 					Undo
@@ -462,6 +465,7 @@ function IssueDetails({ issue, onClose }: { issue: CalendarIssue; onClose: () =>
 						<Button
 							type="button"
 							appearance="ghost"
+							intent="accent"
 							aria-label={`Status: ${issue.state.name}`}
 							className={PROPERTY_BUTTON}
 						>
@@ -487,6 +491,7 @@ function IssueDetails({ issue, onClose }: { issue: CalendarIssue; onClose: () =>
 						<Button
 							type="button"
 							appearance="ghost"
+							intent="accent"
 							aria-label={`Assignee: ${issue.assignee?.name ?? "Unassigned"}`}
 							className={PROPERTY_BUTTON}
 						>
@@ -528,6 +533,7 @@ function IssueDetails({ issue, onClose }: { issue: CalendarIssue; onClose: () =>
 						<Button
 							type="button"
 							appearance="ghost"
+							intent="accent"
 							aria-label={`Priority: ${issue.priorityLabel}`}
 							className={PROPERTY_BUTTON}
 						>
@@ -544,6 +550,7 @@ function IssueDetails({ issue, onClose }: { issue: CalendarIssue; onClose: () =>
 								<Button
 									type="button"
 									appearance="ghost"
+									intent="accent"
 									icon={<CalendarBlank />}
 									aria-label={`Due date: ${format(parseISO(issue.dueDate), "MMMM d, yyyy")}`}
 									className="min-w-0 flex-1 justify-start"
@@ -567,7 +574,7 @@ function IssueDetails({ issue, onClose }: { issue: CalendarIssue; onClose: () =>
 								/>
 							</Popover.Content>
 						</Popover.Root>
-						<Button type="button" appearance="ghost" onClick={clearDate}>
+						<Button type="button" appearance="ghost" intent="accent" onClick={clearDate}>
 							Clear
 						</Button>
 					</div>
@@ -601,6 +608,7 @@ function IssueDetails({ issue, onClose }: { issue: CalendarIssue; onClose: () =>
 							<Button
 								type="button"
 								appearance="ghost"
+								intent="accent"
 								aria-label={`Project: ${issue.project?.name ?? "No project"}`}
 								className="min-w-0 flex-1 justify-start"
 							>
@@ -676,7 +684,7 @@ function IssueDetails({ issue, onClose }: { issue: CalendarIssue; onClose: () =>
 							}
 						}}
 					>
-						<Button type="button" appearance="ghost" icon={<Plus />}>
+						<Button type="button" appearance="ghost" intent="accent" icon={<Plus />}>
 							Tag
 						</Button>
 					</Picker>
@@ -752,10 +760,10 @@ function Description({ issueId }: { issueId: string }) {
 						className="field-sizing-content min-h-32"
 					/>
 					<div className="flex items-center gap-2">
-						<Button type="button" appearance="filled" onClick={save}>
+						<Button type="button" appearance="filled" intent="accent" onClick={save}>
 							Save
 						</Button>
-						<Button type="button" appearance="ghost" onClick={() => setDraft(null)}>
+						<Button type="button" appearance="ghost" intent="accent" onClick={() => setDraft(null)}>
 							Cancel
 						</Button>
 						<span className="ml-auto text-xs text-muted">

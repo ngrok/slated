@@ -25,8 +25,7 @@
  * accent-600, is near-black ink rather than mid-gray.
  *
  * Mantle's dark theme reverses every scale, slate included, so the same
- * mapping turns the filled button into chalk on a dark surface. The high
- * contrast themes follow it too.
+ * mapping turns the filled button into chalk on a dark surface.
  */
 @theme {
 	--color-accent-50: var(--color-slate-50);
@@ -46,7 +45,7 @@
  * Mantle's neutrals are pure gray; tint them toward slate's hue so surfaces,
  * borders, and text sit in the same family as the accent. The lightness of
  * each step is mantle's own. Chroma stays lowest on the lightest steps, where
- * even a little reads as blue. The high-contrast themes keep pure grays.
+ * even a little reads as blue.
  */
 :root,
 :root.light,

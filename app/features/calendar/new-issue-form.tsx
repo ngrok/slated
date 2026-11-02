@@ -178,7 +178,7 @@ export function NewIssueForm({
 					<SectionHeading>Due date (publish)</SectionHeading>
 					<Popover.Root open={dateOpen} onOpenChange={setDateOpen}>
 						<Popover.Trigger asChild>
-							<Button type="button" appearance="outlined" icon={<CalendarBlank />}>
+							<Button type="button" appearance="outlined" intent="accent" icon={<CalendarBlank />}>
 								{format(parseISO(dueDate), "MMM d, yyyy")}
 							</Button>
 						</Popover.Trigger>
@@ -210,7 +210,7 @@ export function NewIssueForm({
 						selected={stateId ? [stateId] : []}
 						onSelect={setStateId}
 					>
-						<Button type="button" appearance="outlined" aria-label="Status">
+						<Button type="button" appearance="outlined" intent="accent" aria-label="Status">
 							{selectedState ? (
 								<>
 									<StatusIcon
@@ -239,7 +239,7 @@ export function NewIssueForm({
 						selected={[String(priority)]}
 						onSelect={(value) => setPriority(Number(value))}
 					>
-						<Button type="button" appearance="outlined" aria-label="Priority">
+						<Button type="button" appearance="outlined" intent="accent" aria-label="Priority">
 							<PriorityIcon priority={priority} className="size-4" />
 							{selectedPriority?.label}
 						</Button>
@@ -255,7 +255,7 @@ export function NewIssueForm({
 						selected={[assigneeId ?? UNASSIGNED]}
 						onSelect={(value) => setAssigneeId(value === UNASSIGNED ? null : value)}
 					>
-						<Button type="button" appearance="outlined" aria-label="Assignee">
+						<Button type="button" appearance="outlined" intent="accent" aria-label="Assignee">
 							{selectedAssignee ? (
 								<>
 									<PersonAvatar person={selectedAssignee} />
@@ -312,12 +312,13 @@ export function NewIssueForm({
 			</section>
 
 			<div className="flex justify-end gap-2">
-				<Button type="button" appearance="ghost" onClick={onCancel}>
+				<Button type="button" appearance="ghost" intent="accent" onClick={onCancel}>
 					Cancel
 				</Button>
 				<Button
 					type="submit"
 					appearance="filled"
+					intent="accent"
 					isLoading={createIssue.isPending}
 					disabled={!teamId || title.trim().length === 0 || createIssue.isPending}
 				>

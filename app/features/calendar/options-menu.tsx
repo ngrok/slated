@@ -43,7 +43,13 @@ export function OptionsMenu({
 	return (
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger asChild>
-				<IconButton type="button" appearance="ghost" label="Options" icon={<DotsThree />} />
+				<IconButton
+					type="button"
+					appearance="ghost"
+					intent="neutral"
+					label="Options"
+					icon={<DotsThree />}
+				/>
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Content align="end" className="w-56">
 				{filters ? (
